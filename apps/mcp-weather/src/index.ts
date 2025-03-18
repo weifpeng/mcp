@@ -83,7 +83,6 @@ async function makeNWSRequest<T>(url: string): Promise<T | null> {
   }
 }
 
-
 // Register weather tools
 server.tool(
   "get-alerts",
