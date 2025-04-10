@@ -82,3 +82,9 @@ Learn more about the power of Turborepo:
 - [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
 - [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
 - [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+
+| 阶段 | 模式 | 举例 | 痛点 |
+| ---- | ---- | ---- | ---- |
+| 手动交互 | 人-LLM聊天 | ChatGPT 网页复制 | 粘贴繁琐，无结构|
+| 应用封装 | 特定任务助手 | vercel v0 | 封闭，不复用|
+| 协议化接入 | MCP | Claude Desktop | 开放生态，可组合，跨模型|

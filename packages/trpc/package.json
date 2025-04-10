@@ -1,0 +1,27 @@
+{
+  "name": "@mcp/trpc",
+  "version": "1.0.0",
+  "description": "TRPC",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@trpc/client": "^11.0.0",
+    "@trpc/server": "^11.0.0",
+    "decimal.js": "^10.5.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@mcp/solana": "workspace:^",
+    "@repo/typescript-config": "workspace:^",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.14",
+    "dotenv": "^16.4.7"
+  }
+}
