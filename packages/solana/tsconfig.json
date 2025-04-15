@@ -1,0 +1,5 @@
+{
+  "extends": "@tokenpocket/typescript-config/base.json",
+  "include": ["src/**/*.ts", "src/**/*.json"],
+  "exclude": ["node_modules"]
+}

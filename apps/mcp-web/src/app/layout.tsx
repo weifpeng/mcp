@@ -1,23 +1,10 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+"use client";
+import { Toaster } from "@/components/ui/sonner";
 import { TrpcProvider } from "@/context/trpc";
-import { Toaster } from "@/components/ui/sonner"
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import "./globals.css";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Token Pocket MCP",
-  description: "Token Pocket MCP",
-};
-
+import WalletConnectProvider from "@/context/wallet-connect";
+ 
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,13 +12,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <TrpcProvider>
-          {children}
-          <Toaster position="top-right" />
-        </TrpcProvider>
+      <body>
+        <WalletConnectProvider>
+          <TrpcProvider>
+            {children}
+            <Toaster position="top-right" />
+          </TrpcProvider>
+        </WalletConnectProvider>
       </body>
     </html>
   );

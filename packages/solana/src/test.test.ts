@@ -1,6 +1,17 @@
-import { createAccount, getMint, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  createAccount,
+  getMint,
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 import "dotenv/config";
-import { Connection } from '@solana/web3.js';
+import {
+  Connection,
+  Transaction,
+  TransactionMessage,
+  VersionedMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 import { z } from "zod";
 
 import { expect, test } from "vitest";
@@ -11,8 +22,8 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
-import { SolanaSDK } from '.';
-import { Decimal } from '@nemo-rewards/lib/decimal';
+import { SolanaSDK } from ".";
+import { Decimal } from "@nemo-rewards/lib/decimal";
 
 const testConfigSchema = z.object({
   RPC_URL: z.string(),
@@ -22,24 +33,30 @@ const testConfigSchema = z.object({
 const testConfig = testConfigSchema.parse(process.env);
 
 test("test", { timeout: 1000 * 60 }, async () => {
-
   const solana = new SolanaSDK({
     rpcUrl: testConfig.RPC_URL,
-    privateKey: testConfig.PRIVATE_KEY,
   });
 
-  const key=Keypair.fromSecretKey(bs58.decode(testConfig.PRIVATE_KEY))
+  const tokenAddress = "FncizudA94jN5VgFru9rB1YaeTiqstdJyUn7JZUhVmzH";
+  const userAddress = "6xbu6TqgwcUZkXgTcZqHF2oTNU7hk4iCZbTNKUPEdTpY";
 
-  const result = await solana.buildTokenSwapTransactionInstruction({
-    from: Keypair.generate().publicKey.toString(),
-    to: "FncizudA94jN5VgFru9rB1YaeTiqstdJyUn7JZUhVmzH",
-    amount: new Decimal(1 * 10 ** 6).toString(),
-    inputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-    outputMint: "So11111111111111111111111111111111111111112",
+  const instruction = solana.buildCloseTokenAccountInstruction({
+    account: new PublicKey(tokenAddress),
+    tokenAddress: new PublicKey(tokenAddress),
+    destination: new PublicKey(userAddress),
   });
 
+  const latestBlockhash = await solana.connection.getLatestBlockhash();
 
+  const tx = new TransactionMessage({
+    payerKey: new PublicKey(userAddress),
+    recentBlockhash: latestBlockhash.blockhash,
+    instructions: [...instruction],
+  }).compileToV0Message([]);
 
+  const versionedTx = new VersionedTransaction(tx);
 
-  console.log(result);
+  const txData = Buffer.from(versionedTx.serialize()).toString("hex");
+
+  console.log(txData);
 });

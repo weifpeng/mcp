@@ -1,111 +1,148 @@
-import { router, publicProcedure, createCallerFactory } from './trpc';
-import * as trpcExpress from '@trpc/server/adapters/express';
-import { RequestHandler } from 'express';
-import { getGlobalData, setGlobalData } from './provider';
-import { z } from 'zod';
-import { solanaSdk } from './provider';
-import { Decimal } from 'decimal.js';
-import { getSolanaSdk } from './provider/solana-sdk';
+import { verifySignature } from "@mcp/solana";
+import * as trpcExpress from "@trpc/server/adapters/express";
+import type { RequestHandler } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
+import { getGlobalData, setGlobalData } from "./provider";
+import { getSolanaSdk } from "./provider/solana-sdk";
+import { signDataSchema } from "./provider/storage/type";
+import { createCallerFactory, publicProcedure, router } from "./trpc";
 
 export const appRouter = router({
+  initWallet: publicProcedure
+    .input(
+      z.object({
+        network: z.enum(["solana", "ethereum"]),
+        address: z.string(),
+        signature: z.string(),
+        message: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const isValid = await verifySignature({
+        signature: input.signature,
+        message: input.message,
+        address: input.address,
+      });
 
-    isInitSolanaWallet: publicProcedure.query(() => {
-        return getGlobalData().privateKey !== '';
+      if (!isValid) {
+        throw new Error("Invalid signature");
+      }
+
+      await setGlobalData({
+        addressData: [
+          {
+            address: input.address,
+            signature: input.signature,
+            message: input.message,
+            network: input.network,
+          },
+        ],
+      });
+
+      return input.address;
     }),
 
-    initSolanaWallet: publicProcedure.input(z.object({
-        password: z.string(),
-    })).mutation(async ({ input }) => {
-        const { address, secretKey } = await solanaSdk.generateKeypair();
+  getWallet: publicProcedure
+    .input(
+      z.object({
+        network: z.enum(["solana", "ethereum"]),
+      }),
+    )
+    .query(async ({ input }) => {
+      const data = await getGlobalData();
+      return data.addressData.find(
+        (addressData) => addressData.network === input.network,
+      );
+    }),
 
-        setGlobalData({
-            ...getGlobalData(),
-            privateKey: secretKey,
-            password: input.password,
+  addSignData: publicProcedure
+    .input(
+      signDataSchema.pick({
+        address: true,
+        dataHex: true,
+        type: true,
+        network: true,
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const id = uuidv4();
+
+      await setGlobalData({
+        signData: [
+          {
+            id,
+            address: input.address,
+            dataHex: input.dataHex,
+            type: input.type,
+            network: input.network,
+            signedDataHex: "",
+          },
+        ],
+      });
+
+      return id;
+    }),
+
+  submitSignedData: publicProcedure
+    .input(
+      signDataSchema
+        .pick({
+          id: true,
+          signedDataHex: true,
         })
+        .merge(
+          z.object({
+            txHash: z.string().nullish(),
+          }),
+        ),
+    )
+    .mutation(async ({ input }) => {
+      const data = await getGlobalData();
 
-        return address
+      const item = data.signData.find((signData) => signData.id === input.id);
+
+      if (!item) {
+        throw new Error("Sign data not found");
+      }
+
+      await setGlobalData({
+        signData: [
+          {
+            ...item,
+            id: input.id,
+            signedDataHex: input.signedDataHex,
+            txHash: input.txHash,
+          },
+        ],
+      });
+
+      return input.signedDataHex;
     }),
 
-    getSolanaWallet: publicProcedure.query(() => {
-        const keypair = solanaSdk.getKeypair(getGlobalData().privateKey);
-
-        return {
-            address: keypair.publicKey.toBase58(),
-        }
+  getSignData: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const data = await getGlobalData();
+      return data.signData.find((signData) => signData.id === input.id);
     }),
 
-    getSolanaBalance: publicProcedure.query(async () => {
-        const keypair = await solanaSdk.getKeypair(getGlobalData().privateKey);
+  sendTransaction: publicProcedure
+    .input(
+      z.object({
+        signedDataHex: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const txHash = await getSolanaSdk().sendTransaction({
+        versionedTransactionHex: input.signedDataHex,
+      });
 
-        const balance = await solanaSdk.getSolBalance(keypair.publicKey.toBase58())
-
-        return balance
-    }),
-
-    createToken: publicProcedure.input(z.object({
-        name: z.string(),
-        imageUrl: z.string(),
-        symbol: z.string(),
-        decimals: z.number(),
-        initialSupply: z.number(),
-    })).mutation(async ({ input }) => {
-        const keypair = await solanaSdk.getKeypair(getGlobalData().privateKey);
-
-        const result = await solanaSdk.createToken({
-            from: keypair,
-            name: input.name,
-            imageUrl: input.imageUrl,
-            symbol: input.symbol,
-            decimals: input.decimals,
-            initialSupply: input.initialSupply
-        })
-
-        return result
-
-    }),
-
-
-    listSplToken: publicProcedure.input(z.object({
-        address: z.string()
-    })).query(async ({ input }) => {
-
-        const result = await solanaSdk.getAddressTokenList(input.address)
-        const tokenList = await Promise.all(result.map(async (token) => {
-            const tokenBalance = await solanaSdk.getTokenAccountBalance(token)
-
-            const tokenInfo = await solanaSdk.getTokenInfo(tokenBalance.mint.toBase58())
-
-            return {
-                ...tokenInfo,
-                formattedBalance: new Decimal(tokenBalance.amount.toString()).div(10 ** tokenInfo?.decimals).toString(),
-                tokenAddress: tokenBalance.mint.toBase58()
-            }
-        }))
-
-        return tokenList
-    }),
-
-    transferSplToken: publicProcedure.input(z.object({
-        toAddress: z.string(),
-        tokenAddress: z.string(),
-        amount: z.number(),
-    })).mutation(async ({ input }) => {
-        const keypair = await solanaSdk.getKeypair(getGlobalData().privateKey);
-
-        const result = await getSolanaSdk().sendToken({
-            from: keypair,
-            to: input.toAddress,
-            amount: new Decimal(input.amount).toString(),
-            tokenAddress: input.tokenAddress,
-        })
-
-        return result
-    }),
-
-
-    hello: publicProcedure.query(() => {
-        return "Hello, world!"
+      return txHash;
     }),
 });
 
@@ -113,10 +150,10 @@ export const appRouter = router({
 // NOT the router itself.
 export type AppRouter = typeof appRouter;
 
-export const trpcExpressMiddleware: RequestHandler = trpcExpress.createExpressMiddleware<AppRouter>({
+export const trpcExpressMiddleware: RequestHandler =
+  trpcExpress.createExpressMiddleware<AppRouter>({
     router: appRouter,
     createContext: () => ({}),
-});
-
+  });
 
 export const createCaller = createCallerFactory(appRouter);

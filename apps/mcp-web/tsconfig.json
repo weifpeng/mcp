@@ -19,9 +19,17 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@mcp/trpc": ["./../../packages/trpc/src/index.ts"],
+      "@mcp/solana": ["./../../packages/solana/src/index.ts"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "./types/tokenpocket.d.ts"
+  ],
   "exclude": ["node_modules"]
 }

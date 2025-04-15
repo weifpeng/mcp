@@ -1,119 +1,81 @@
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  MINT_SIZE,
   TOKEN_PROGRAM_ID,
   TokenError,
   createAssociatedTokenAccountInstruction,
   createCloseAccountInstruction,
+  createInitializeMint2Instruction,
   createMint,
   createTransferInstruction,
   getAccount,
   getAssociatedTokenAddress,
   getAssociatedTokenAddressSync,
+  getMinimumBalanceForRentExemptMint,
   getMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
 import {
   AddressLookupTableAccount,
-  Commitment,
   ComputeBudgetProgram,
   Connection,
-  Finality,
+  type Finality,
   Keypair,
   PublicKey,
-  SignaturesForAddressOptions,
+  type SignaturesForAddressOptions,
   SystemProgram,
   Transaction,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
-  sendAndConfirmTransaction,
 } from "@solana/web3.js";
-
-import { Serializer } from '@metaplex-foundation/umi/serializers';
-
-
+import tweetnacl from "tweetnacl";
 
 import bs58 from "bs58";
-import { Helius } from "helius-sdk";
 export { isAddress } from "@solana/addresses";
 
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
-import { mplToolbox } from "@metaplex-foundation/mpl-toolbox";
-
 import {
-  signerIdentity,
-  Signer,
-  createSignerFromKeypair,
-  percentAmount,
-  publicKey
-} from "@metaplex-foundation/umi";
-
-import { irysUploader } from '@metaplex-foundation/umi-uploader-irys'
-
-
-import {
-  MPL_TOKEN_METADATA_PROGRAM_ID,
-  TokenStandard,
-  createAndMint,
   createV1,
   findMetadataPda,
-  getCreateMetadataAccountV3InstructionDataSerializer,
-  getCreateV1InstructionDataSerializer,
+  MPL_TOKEN_METADATA_PROGRAM_ID,
   mplTokenMetadata,
+  TokenStandard,
 } from "@metaplex-foundation/mpl-token-metadata";
-import { z } from "zod";
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 
-import { type Instruction, createJupiterApiClient } from "@jup-ag/api";
-import data from "./solana.tokenlist.json";
+import data from "./solana.tokenlist.json" assert { type: "json" };
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import {
+  createSignerFromKeypair,
+  percentAmount,
+  publicKey,
+  signerIdentity,
+} from "@metaplex-foundation/umi";
+import { mplToolbox } from "@metaplex-foundation/mpl-toolbox";
+import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
 
 export const WARP_SOL_ADDRESS = "So11111111111111111111111111111111111111112";
 const COMPUTE_UNIT_LIMIT_MARGIN = 1.05;
-const OPEN_TOKEN_ACCOUNT_FEE = 0.002;
-const TRANSFER_TOKEN_FEE_MIN_LIMIT = 0.002;
-const COMPUTE_UNIT_PRICE = 2_000_000;
 
-function deserializeInstruction(instruction: Instruction) {
-  return new TransactionInstruction({
-    programId: new PublicKey(instruction.programId),
-    keys: instruction.accounts.map((key) => ({
-      pubkey: new PublicKey(key.pubkey),
-      isSigner: key.isSigner,
-      isWritable: key.isWritable,
-    })),
-    data: Buffer.from(instruction.data, "base64"),
-  });
-}
 type VersionedTransactionResponse = NonNullable<
   Awaited<ReturnType<typeof SolanaSDK.prototype.getTransactionDetail>>
 >;
 
 export class SolanaSDK {
   connection: Connection;
-  privateKey: string;
-  jupiter = createJupiterApiClient();
-  helius: Helius;
 
   constructor(params: {
     rpcUrl: string;
-    privateKey: string;
-    heliusApiKey: string;
   }) {
     this.connection = new Connection(params.rpcUrl, {
       commitment: "confirmed",
       disableRetryOnRateLimit: false,
     });
-    this.privateKey = params.privateKey;
-    this.helius = new Helius(params.heliusApiKey);
   }
 
   getKeypair(privateKey: string) {
     return Keypair.fromSecretKey(new Uint8Array(bs58.decode(privateKey)));
-  }
-
-  getSystemFeePayer() {
-    return Keypair.fromSecretKey(new Uint8Array(bs58.decode(this.privateKey)));
   }
 
   async generateKeypair() {
@@ -122,15 +84,16 @@ export class SolanaSDK {
     return {
       address: keypair.publicKey.toBase58(),
       secretKey,
+      keypair,
     };
   }
 
   async getAddressLookupTableAccounts(
-    addresses: string[]
+    addresses: string[],
   ): Promise<AddressLookupTableAccount[]> {
     const addressLookupTableAccountInfos =
       await this.connection.getMultipleAccountsInfo(
-        addresses.map((address) => new PublicKey(address))
+        addresses.map((address) => new PublicKey(address)),
       );
 
     return addressLookupTableAccountInfos.reduce(
@@ -146,7 +109,7 @@ export class SolanaSDK {
 
         return accounts;
       },
-      new Array<AddressLookupTableAccount>()
+      new Array<AddressLookupTableAccount>(),
     );
   }
 
@@ -243,7 +206,7 @@ export class SolanaSDK {
   async isATAExist(param: { address: string; tokenAddress: string }) {
     const tokenAccount = getAssociatedTokenAddressSync(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.address)
+      new PublicKey(param.address),
     );
     return await getAccount(this.connection, tokenAccount).catch(() => false);
   }
@@ -255,13 +218,13 @@ export class SolanaSDK {
   }) {
     const ataAccount = getAssociatedTokenAddressSync(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.account.toBase58())
+      new PublicKey(param.account.toBase58()),
     );
     return [
       createCloseAccountInstruction(
         ataAccount,
         param?.destination ? param.destination : param.account,
-        param.account
+        param.account,
       ),
     ];
   }
@@ -284,7 +247,7 @@ export class SolanaSDK {
     const transactionInstructionList: TransactionInstruction[] = [];
     const tokenAccount = getAssociatedTokenAddressSync(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.address)
+      new PublicKey(param.address),
     );
 
     transactionInstructionList.push(
@@ -294,81 +257,27 @@ export class SolanaSDK {
         new PublicKey(param.address),
         new PublicKey(param.tokenAddress),
         TOKEN_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      )
+        ASSOCIATED_TOKEN_PROGRAM_ID,
+      ),
     );
 
     return transactionInstructionList;
   }
 
   buildSendSolTransactionInstruction(param: {
-    from: Keypair;
+    from: string;
     to: string;
     amount: string;
   }) {
     const transactionInstructionList: TransactionInstruction[] = [];
     transactionInstructionList.push(
       SystemProgram.transfer({
-        fromPubkey: param.from.publicKey,
+        fromPubkey: new PublicKey(param.from),
         toPubkey: new PublicKey(param.to),
         lamports: BigInt(new Decimal(param.amount).toString()),
-      })
+      }),
     );
     return transactionInstructionList;
-  }
-
-  async buildTokenSwapTransactionInstruction(param: {
-    from: string;
-    to: string;
-    amount: string;
-    inputMint: string;
-    outputMint: string;
-    swapMode?: "ExactIn" | "ExactOut";
-    feePayer: PublicKey;
-  }) {
-    const toAta = getAssociatedTokenAddressSync(
-      new PublicKey(param.outputMint),
-      new PublicKey(param.to)
-    );
-
-    const quote = await this.jupiter.quoteGet({
-      inputMint: param.inputMint,
-      outputMint: param.outputMint,
-      amount: Number(param.amount),
-      swapMode: param.swapMode || "ExactIn",
-      dexes: ["Raydium"],
-      onlyDirectRoutes: true,
-      slippageBps: 800,
-    });
-
-    const swapInstructionsResponse = await this.jupiter.swapInstructionsPost({
-      swapRequest: {
-        quoteResponse: quote,
-        userPublicKey: param.from,
-        destinationTokenAccount: toAta.toString(),
-        useSharedAccounts: true,
-        skipUserAccountsRpcCalls: true,
-        computeUnitPriceMicroLamports: 2_500_000,
-      },
-    });
-
-    const {
-      // computeBudgetInstructions, // The necessary instructions to setup the compute budget.
-      // setupInstructions, // Setup missing ATA for the users.
-      swapInstruction, // The actual swap instruction.
-      // cleanupInstruction, // Unwrap the SOL if `wrapAndUnwrapSol = true`.
-      addressLookupTableAddresses, // The lookup table addresses that you can use if you are using versioned transaction.
-    } = swapInstructionsResponse;
-
-    return {
-      instructions: [
-        deserializeInstruction(swapInstruction),
-        // ...(cleanupInstruction
-        //   ? [deserializeInstruction(cleanupInstruction)]
-        //   : []),
-      ],
-      lookupTableAddresses: addressLookupTableAddresses,
-    };
   }
 
   buildTokenTransferTransactionInstruction(param: {
@@ -381,22 +290,21 @@ export class SolanaSDK {
     const transactionInstructionList: TransactionInstruction[] = [];
     const fromTokenAccount = getAssociatedTokenAddressSync(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.from)
+      new PublicKey(param.from),
     );
 
     const toTokenAccount = getAssociatedTokenAddressSync(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.to)
+      new PublicKey(param.to),
     );
-
 
     transactionInstructionList.push(
       createTransferInstruction(
         fromTokenAccount,
         toTokenAccount,
         new PublicKey(param.from),
-        BigInt(new Decimal(param.amount).toString())
-      )
+        BigInt(new Decimal(param.amount).toString()),
+      ),
     );
 
     return transactionInstructionList;
@@ -410,30 +318,56 @@ export class SolanaSDK {
 
     const unitsConsumedInstructions = unitsConsumed
       ? [
-        ComputeBudgetProgram.setComputeUnitLimit({
-          units: unitsConsumed * COMPUTE_UNIT_LIMIT_MARGIN,
-        }),
-      ]
+          ComputeBudgetProgram.setComputeUnitLimit({
+            units: unitsConsumed * COMPUTE_UNIT_LIMIT_MARGIN,
+          }),
+        ]
       : [];
     const computeBudgetInstructions =
       computeUnitPrice > 0
         ? [
-          ComputeBudgetProgram.setComputeUnitPrice({
-            microLamports: computeUnitPrice,
-          }),
-        ]
+            ComputeBudgetProgram.setComputeUnitPrice({
+              microLamports: computeUnitPrice,
+            }),
+          ]
         : [];
     return [...unitsConsumedInstructions, ...computeBudgetInstructions];
+  }
+
+  async buildCreateMintTransactionInstruction(param: {
+    from: PublicKey;
+    name: string;
+    symbol: string;
+    decimals: number;
+  }) {
+    const lamports = await getMinimumBalanceForRentExemptMint(this.connection);
+
+    return [
+      SystemProgram.createAccount({
+        fromPubkey: param.from,
+        newAccountPubkey: param.from,
+        space: MINT_SIZE,
+        lamports,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeMint2Instruction(
+        param.from,
+        param.decimals,
+        param.from,
+        null,
+        TOKEN_PROGRAM_ID,
+      ),
+    ];
   }
 
   buildTransaction(param: {
     instructions: TransactionInstruction[];
     addressLookupTableAddresses: AddressLookupTableAccount[];
     blockhash: string;
-    feePayer: Keypair;
+    feePayer: PublicKey;
   }) {
     const transaction = new TransactionMessage({
-      payerKey: param.feePayer.publicKey,
+      payerKey: param.feePayer,
       recentBlockhash: param.blockhash,
       instructions: param.instructions,
     }).compileToV0Message(param.addressLookupTableAddresses);
@@ -448,36 +382,11 @@ export class SolanaSDK {
     tokenAddress: string;
     blockhash: string;
     memo?: string;
-    payAccountRentFee?: boolean;
   }) {
-    if (!this.privateKey) {
-      throw new Error("PRIVATE_KEY_NOT_SET");
-    }
-    const adminPayer = Keypair.fromSecretKey(
-      new Uint8Array(bs58.decode(this.privateKey))
-    );
-
-    let needAdminPay = false;
-
     const computeUnitTransactionInstructions: TransactionInstruction[] = [];
     const createTokenAccountInstructions: TransactionInstruction[] = [];
-    const simulateSwapTransactionInstructions: TransactionInstruction[] = [];
     const transferTransactionInstructions: TransactionInstruction[] = [];
-    const unwrapSolInstructions: TransactionInstruction[] = [];
     const memoInstructions: TransactionInstruction[] = [];
-    let finalVersionedTransaction: VersionedTransaction;
-
-    const fromSolBalance = await this.getSolBalance(
-      param.from.publicKey.toBase58()
-    );
-
-    const needSwapToPaySol = new Decimal(fromSolBalance)
-      .div(10 ** 9)
-      .lt(TRANSFER_TOKEN_FEE_MIN_LIMIT);
-
-    if (needSwapToPaySol) {
-      needAdminPay = true;
-    }
 
     // createTokenAccountInstructions
     const isToTokenAccountExist = await this.isATAExist({
@@ -485,35 +394,23 @@ export class SolanaSDK {
       tokenAddress: param.tokenAddress,
     });
     if (!isToTokenAccountExist) {
-      if (param.payAccountRentFee) {
-        needAdminPay = true;
-      }
       createTokenAccountInstructions.push(
         ...this.buildCreateATAInstruction({
           address: param.to,
           tokenAddress: param.tokenAddress,
-          feePayer:
-            param.payAccountRentFee || needSwapToPaySol
-              ? adminPayer.publicKey
-              : param.from.publicKey,
-        })
+          feePayer: param.from.publicKey,
+        }),
       );
     }
 
-    //transferTransactionInstructions
-    console.log(
-      `form: ${param.from.publicKey.toBase58()}, to: ${param.to}, amount: ${param.amount}, tokenAddress: ${param.tokenAddress}, feePayer: ${needSwapToPaySol ? adminPayer.publicKey : param.from.publicKey}`
-    );
     transferTransactionInstructions.push(
       ...this.buildTokenTransferTransactionInstruction({
         from: param.from.publicKey.toBase58(),
         to: param.to,
         amount: param.amount,
         tokenAddress: param.tokenAddress,
-        feePayer: needSwapToPaySol
-          ? adminPayer.publicKey
-          : param.from.publicKey,
-      })
+        feePayer: param.from.publicKey,
+      }),
     );
 
     //memoInstructions
@@ -521,310 +418,65 @@ export class SolanaSDK {
       memoInstructions.push(...this.buildNemoInstruction({ memo: param.memo }));
     }
 
-    let formSwapSolAmount = "0";
-    let solFee = "0";
-
-    if (needSwapToPaySol) {
-      if (needSwapToPaySol) {
-        const isFeePayerWsolTokenAccountExist = await this.isATAExist({
-          address: adminPayer.publicKey.toBase58(),
-          tokenAddress: WARP_SOL_ADDRESS,
-        });
-        if (!isFeePayerWsolTokenAccountExist) {
-          createTokenAccountInstructions.push(
-            ...this.buildCreateATAInstruction({
-              address: adminPayer.publicKey.toBase58(),
-              tokenAddress: WARP_SOL_ADDRESS,
-              feePayer: adminPayer.publicKey,
-            })
-          );
-        }
-      }
-
-      //unwrapSolInstructions
-      unwrapSolInstructions.push(
-        ...this.buildCloseTokenAccountInstruction({
-          account: adminPayer.publicKey,
-          tokenAddress: new PublicKey(WARP_SOL_ADDRESS),
-        })
-      );
-
-      // simulateSwapTransactionInstructions
-      const { instructions: swapTransaction, lookupTableAddresses } =
-        await this.buildTokenSwapTransactionInstruction({
-          from: param.from.publicKey.toBase58(),
-          to: adminPayer.publicKey.toBase58(),
-          amount: "200000",
-          inputMint: param.tokenAddress,
-          outputMint: WARP_SOL_ADDRESS,
-          swapMode: "ExactOut",
-          feePayer: adminPayer.publicKey,
-        });
-      simulateSwapTransactionInstructions.push(...swapTransaction);
-
-      const computeUnitTransactionInstructionForSimulate =
-        this.buildComputeUnitTransactionInstruction({
-          computeUnitPrice: 2_500_000,
-          unitsConsumed: 1000000,
-        });
-
-      const addressLookupTableAddresses =
-        await this.getAddressLookupTableAccounts(lookupTableAddresses);
-
-      const simulateTransaction = [
-        ...computeUnitTransactionInstructionForSimulate,
-        ...createTokenAccountInstructions,
-        ...simulateSwapTransactionInstructions,
-        ...transferTransactionInstructions,
-        ...memoInstructions,
-        ...unwrapSolInstructions,
-      ];
-
-      const { computeUnitPrice, unitsConsumed } =
-        await this.estimateTransactionFee({
-          transaction: this.buildTransaction({
-            instructions: simulateTransaction,
-            addressLookupTableAddresses,
-            blockhash: param.blockhash,
-            feePayer: adminPayer,
-          }),
-        });
-
-      const finalFee = new Decimal(computeUnitPrice)
-        .mul(unitsConsumed || 0)
-        .div(10 ** 6)
-        .toString();
-
-      const payerSolAmount = new Decimal(finalFee)
-        .mul(COMPUTE_UNIT_LIMIT_MARGIN)
-        .add(
-          param.payAccountRentFee || isToTokenAccountExist
-            ? 0
-            : new Decimal(OPEN_TOKEN_ACCOUNT_FEE).mul(10 ** 9).toString()
-        )
-        .ceil()
-        .toString();
-
-      console.log(
-        `payerSolAmount: ${payerSolAmount}, computeUnitPrice: ${computeUnitPrice}, unitsConsumed: ${unitsConsumed}, finalFee: ${finalFee}`
-      );
-      formSwapSolAmount = payerSolAmount;
-
-      computeUnitTransactionInstructions.push(
-        ...this.buildComputeUnitTransactionInstruction({
-          computeUnitPrice,
-          unitsConsumed,
-        })
-      );
-
-      const {
-        instructions: finalSwapTransaction,
-        lookupTableAddresses: finalLookupTableAddresses,
-      } = await this.buildTokenSwapTransactionInstruction({
-        from: param.from.publicKey.toBase58(),
-        to: adminPayer.publicKey.toBase58(),
-        amount: payerSolAmount,
-        inputMint: param.tokenAddress,
-        outputMint: WARP_SOL_ADDRESS,
-        swapMode: "ExactOut",
-        feePayer: adminPayer.publicKey,
+    const computeUnitTransactionInstructionForSimulate =
+      this.buildComputeUnitTransactionInstruction({
+        computeUnitPrice: 2_500_000,
+        unitsConsumed: 100000,
       });
 
-      const finalLookupTableAccounts = await this.getAddressLookupTableAccounts(
-        finalLookupTableAddresses
-      );
+    const simulateTransaction = [
+      ...computeUnitTransactionInstructionForSimulate,
+      ...createTokenAccountInstructions,
+      ...transferTransactionInstructions,
+      ...memoInstructions,
+    ];
 
-      const finalInstructions = [
-        ...computeUnitTransactionInstructions,
-        ...createTokenAccountInstructions,
-        ...finalSwapTransaction,
-        ...transferTransactionInstructions,
-        ...memoInstructions,
-        ...unwrapSolInstructions,
-      ];
-
-      finalVersionedTransaction = this.buildTransaction({
-        instructions: finalInstructions,
-        addressLookupTableAddresses: finalLookupTableAccounts,
-        blockhash: param.blockhash,
-        feePayer: adminPayer,
+    const { computeUnitPrice, unitsConsumed } =
+      await this.estimateTransactionFee({
+        transaction: this.buildTransaction({
+          instructions: simulateTransaction,
+          addressLookupTableAddresses: [],
+          blockhash: param.blockhash,
+          feePayer: param.from,
+        }),
       });
-    } else {
-      const computeUnitTransactionInstructionForSimulate =
-        this.buildComputeUnitTransactionInstruction({
-          computeUnitPrice: 2_500_000,
-          unitsConsumed: 100000,
-        });
 
-      const simulateTransaction = [
-        ...computeUnitTransactionInstructionForSimulate,
-        ...createTokenAccountInstructions,
-        ...transferTransactionInstructions,
-        ...memoInstructions,
-      ];
+    computeUnitTransactionInstructions.push(
+      ...this.buildComputeUnitTransactionInstruction({
+        computeUnitPrice,
+        unitsConsumed,
+      }),
+    );
+    const finalFee = new Decimal(computeUnitPrice)
+      .mul(unitsConsumed || 0)
+      .div(10 ** 6)
+      .toString();
 
-      const { computeUnitPrice, unitsConsumed } =
-        await this.estimateTransactionFee({
-          transaction: this.buildTransaction({
-            instructions: simulateTransaction,
-            addressLookupTableAddresses: [],
-            blockhash: param.blockhash,
-            feePayer: param.from,
-          }),
-        });
+    const finalInstructions = [
+      ...computeUnitTransactionInstructions,
+      ...createTokenAccountInstructions,
+      ...transferTransactionInstructions,
+      ...memoInstructions,
+    ];
 
-      computeUnitTransactionInstructions.push(
-        ...this.buildComputeUnitTransactionInstruction({
-          computeUnitPrice,
-          unitsConsumed,
-        })
-      );
-      const finalFee = new Decimal(computeUnitPrice)
-        .mul(unitsConsumed || 0)
-        .div(10 ** 6)
-        .toString();
-
-      console.log(
-        `payerSolAmount: ${finalFee}, computeUnitPrice: ${computeUnitPrice}, unitsConsumed: ${unitsConsumed}, finalFee: ${finalFee}`
-      );
-
-      solFee = finalFee;
-      const finalInstructions = [
-        ...computeUnitTransactionInstructions,
-        ...createTokenAccountInstructions,
-        ...transferTransactionInstructions,
-        ...memoInstructions,
-      ];
-
-      finalVersionedTransaction = this.buildTransaction({
-        instructions: finalInstructions,
-        addressLookupTableAddresses: [],
-        blockhash: param.blockhash,
-        feePayer: param.from,
-      });
-    }
-
-    finalVersionedTransaction.sign([param.from]);
-
-    if (!needAdminPay) {
-      return {
-        resignedTransaction: finalVersionedTransaction,
-        formSwapSolAmount,
-        solFee,
-      };
-    }
-
-    const rawTransaction = finalVersionedTransaction.serialize();
-    const resignedTransaction =
-      VersionedTransaction.deserialize(rawTransaction);
-    resignedTransaction.sign([adminPayer]);
-
-    return { resignedTransaction, formSwapSolAmount, solFee };
-  }
-
-  async sendTokenFee(param: {
-    from: Keypair;
-    to: string;
-    amount: string;
-    tokenAddress: string;
-    memo?: string;
-    payAccountRentFee?: boolean;
-  }) {
-    if (!this.privateKey) {
-      throw new Error("PRIVATE_KEY_NOT_SET");
-    }
-    const latestBlockhash = await this.connection.getLatestBlockhash();
-
-    const { formSwapSolAmount, solFee } = await this.buildSendTokenTransaction({
-      ...param,
-      blockhash: latestBlockhash.blockhash,
+    const finalVersionedTransaction = this.buildTransaction({
+      instructions: finalInstructions,
+      addressLookupTableAddresses: [],
+      blockhash: param.blockhash,
+      feePayer: param.from,
     });
 
-    if (solFee !== "0") {
-      return {
-        symbol: "SOL",
-        decimal: 9,
-        amount: solFee,
-      };
-    }
-
-    console.log({
-      inputMint: param.tokenAddress,
-      outputMint: WARP_SOL_ADDRESS,
-      amount: Number(formSwapSolAmount),
-      swapMode: "ExactOut",
-    });
-
-    const quote = await this.jupiter.quoteGet({
-      inputMint: param.tokenAddress,
-      outputMint: WARP_SOL_ADDRESS,
-      amount: Number(formSwapSolAmount),
-      swapMode: "ExactOut",
-    });
-
-    const tokenInfo = await this.getTokenInfo(param.tokenAddress);
-    if (!tokenInfo) {
-      throw new Error("TOKEN_INFO_NOT_FOUND");
-    }
     return {
-      symbol: tokenInfo.symbol,
-      decimal: tokenInfo.decimals,
-      amount: quote.inAmount,
+      finalVersionedTransaction,
+      fee: finalFee,
     };
-  }
-
-  async sendToken(param: {
-    from: Keypair;
-    to: string;
-    amount: string;
-    tokenAddress: string;
-    memo?: string;
-    payAccountRentFee?: boolean;
-  }) {
-    try {
-
-      if (!this.privateKey) {
-        throw new Error("PRIVATE_KEY_NOT_SET");
-      }
-
-      const { from } = param;
-      const latestBlockhash = await this.connection.getLatestBlockhash();
-
-
-
-      const { resignedTransaction: transaction } =
-        await this.buildSendTokenTransaction({
-          ...param,
-          blockhash: latestBlockhash.blockhash,
-        });
-
-      const signature = await this.connection.sendRawTransaction(
-        transaction.serialize(),
-        {
-          skipPreflight: false,
-          preflightCommitment: "confirmed",
-        }
-      );
-
-      // 等待确认
-      await this.connection.confirmTransaction({
-        signature,
-        blockhash: latestBlockhash.blockhash,
-        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      });
-
-      return signature;
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
   }
 
   async getTokenAccount(param: { tokenAddress: string; owner: string }) {
     try {
       const tokenAccount = await getAssociatedTokenAddress(
         new PublicKey(param.tokenAddress),
-        new PublicKey(param.owner)
+        new PublicKey(param.owner),
       );
 
       const account = await getAccount(this.connection, tokenAccount);
@@ -843,13 +495,9 @@ export class SolanaSDK {
     amount: string;
     tokenAddress: string;
   }) {
-    if (!this.privateKey) {
-      throw new Error("PRIVATE_KEY_NOT_SET");
-    }
-
     const fromTokenAccount = await getAssociatedTokenAddress(
       new PublicKey(param.tokenAddress),
-      new PublicKey(param.to)
+      new PublicKey(param.to),
     );
 
     const transaction = new Transaction().add(
@@ -857,8 +505,8 @@ export class SolanaSDK {
         fromTokenAccount,
         fromTokenAccount,
         new PublicKey(param.to),
-        BigInt(new Decimal(param.amount).toString())
-      )
+        BigInt(new Decimal(param.amount).toString()),
+      ),
     );
 
     const { blockhash } = await this.connection.getLatestBlockhash();
@@ -868,7 +516,6 @@ export class SolanaSDK {
     const message = transaction.compileMessage();
 
     const fees = await this.connection.getFeeForMessage(message);
-    console.log(`Estimated token transfer cost: ${fees.value} lamports`);
     return fees.value;
   }
 
@@ -882,7 +529,9 @@ export class SolanaSDK {
   async getTokenInfo(address: string) {
     try {
       // Check if token exists in the local token list before querying on-chain metadata
-      const tokenInfo = (data as any)?.tokens?.find((d: any) => d.address === address);
+      const tokenInfo = (data as any)?.tokens?.find(
+        (d: any) => d.address === address,
+      );
       if (tokenInfo) {
         return {
           name: tokenInfo.name,
@@ -905,11 +554,10 @@ export class SolanaSDK {
           new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID).toBuffer(),
           mintPubkey.toBuffer(),
         ],
-        new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID)
+        new PublicKey(MPL_TOKEN_METADATA_PROGRAM_ID),
       );
 
       const accountMeta = await this.connection.getAccountInfo(metadataAddress);
-
 
       if (!accountMeta?.data) {
         return null;
@@ -931,33 +579,41 @@ export class SolanaSDK {
       const nameLength = data.readUInt32LE(offset);
       offset += 4;
       if (offset + nameLength > data.length) return null;
-      const name = data.slice(offset, offset + nameLength).toString('utf8').replace(/\0/g, '');
+      const name = data
+        .slice(offset, offset + nameLength)
+        .toString("utf8")
+        .replace(/\0/g, "");
       offset += nameLength;
 
       // Read symbol length (4 bytes) and symbol
       const symbolLength = data.readUInt32LE(offset);
       offset += 4;
       if (offset + symbolLength > data.length) return null;
-      const symbol = data.slice(offset, offset + symbolLength).toString('utf8').replace(/\0/g, '');
+      const symbol = data
+        .slice(offset, offset + symbolLength)
+        .toString("utf8")
+        .replace(/\0/g, "");
       offset += symbolLength;
 
       // Read URI length (4 bytes) and URI
       const uriLength = data.readUInt32LE(offset);
       offset += 4;
       if (offset + uriLength > data.length) return null;
-      const uri = data.slice(offset, offset + uriLength).toString('utf8').replace(/\0/g, '');
+      const uri = data
+        .slice(offset, offset + uriLength)
+        .toString("utf8")
+        .replace(/\0/g, "");
 
       let logoUri = "";
       try {
         const res = await fetch(uri, {
-          redirect: 'follow'
+          redirect: "follow",
         });
         const metadata = await res.json();
         logoUri = metadata?.image;
       } catch (e) {
         console.error(e);
       }
-
 
       return {
         name,
@@ -969,35 +625,6 @@ export class SolanaSDK {
       console.error("Error fetching token info:", error);
       return null;
     }
-  }
-
-  async calculateFeeByUsdc(param: {
-    to: string;
-    amount: string;
-    tokenAddress: string;
-  }) {
-    let fee = 0;
-
-    const tokenAccount = await this.getTokenAccount({
-      tokenAddress: param.tokenAddress,
-      owner: param.to,
-    });
-
-    if (!tokenAccount) {
-      fee = await this.calculateAccountRent();
-    }
-
-    const transactionFee = await this.calcTransactionFee(param);
-    if (!transactionFee) {
-      throw new Error("TRANSACTION_FEE_NOT_FOUND");
-    }
-
-    const solPrice = await this.getSolPrice();
-
-    return new Decimal(fee + transactionFee)
-      .div(10 ** 9)
-      .mul(solPrice)
-      .toNumber();
   }
 
   async calculateFee(param: {
@@ -1024,47 +651,12 @@ export class SolanaSDK {
     return new Decimal(fee + transactionFee).toString();
   }
 
-  async getSolPrice() {
-    const res = await fetch(
-      "https://api-v3.raydium.io/mint/price?mints=So11111111111111111111111111111111111111112"
-    );
-
-    const data = await res.json();
-    const schema = z.object({
-      data: z.object({
-        So11111111111111111111111111111111111111112: z
-          .string()
-          .transform((val) => new Decimal(val)),
-      }),
-    });
-
-    const result = schema.parse(data);
-    return result.data.So11111111111111111111111111111111111111112;
-  }
-
-  async getPriceByToken(address: string[]) {
-    const res = await fetch(
-      `https://api-v3.raydium.io/mint/price?mints=${address.join(",")}`
-    );
-
-    const data = await res.json();
-    const result: Array<{ address: string; price: string }> = [];
-    for (const item of address) {
-      result.push({
-        address: item,
-        price: data.data[item] ? new Decimal(data.data[item]).toString() : "0",
-      });
-    }
-
-    return result;
-  }
-
   async getAddressTokenList(address: string) {
     const tokenLargestAccounts = await this.connection.getTokenAccountsByOwner(
       new PublicKey(address),
       {
         programId: TOKEN_PROGRAM_ID,
-      }
+      },
     );
     const result: Array<{ tokenAccountAddress: string }> = [];
     for (const item of tokenLargestAccounts.value) {
@@ -1078,7 +670,7 @@ export class SolanaSDK {
   async getTokenAccountBalance(param: { tokenAccountAddress: string }) {
     const tokenAccount = await getAccount(
       this.connection,
-      new PublicKey(param.tokenAccountAddress)
+      new PublicKey(param.tokenAccountAddress),
     );
     return tokenAccount;
   }
@@ -1088,31 +680,15 @@ export class SolanaSDK {
     return balance;
   }
 
-  async sendSol(param: { from: Keypair; to: string; amount: string }) {
-    const transferTransaction = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: param.from.publicKey,
-        toPubkey: new PublicKey(param.to),
-        lamports: BigInt(new Decimal(param.amount).toString()),
-      })
-    );
-
-    return await sendAndConfirmTransaction(
-      this.connection,
-      transferTransaction,
-      [param.from]
-    );
-  }
-
   async getTransactionListByAddress(
     address: string,
     options?: SignaturesForAddressOptions,
-    commitment?: Finality
+    commitment?: Finality,
   ) {
     const transaction = await this.connection.getSignaturesForAddress(
       new PublicKey(address),
       options,
-      commitment
+      commitment,
     );
     return transaction;
   }
@@ -1127,13 +703,13 @@ export class SolanaSDK {
 
   getBalanceChange(address: string, detail: VersionedTransactionResponse) {
     const accountList = detail.transaction.message.staticAccountKeys.map(
-      (item) => item.toBase58()
+      (item) => item.toBase58(),
     );
 
     const accountIndex = accountList.findIndex((item) => item === address);
 
     const balanceChange = new Decimal(
-      detail.meta?.postBalances?.[accountIndex] || 0
+      detail.meta?.postBalances?.[accountIndex] || 0,
     )
       .sub(detail.meta?.preBalances?.[accountIndex] || 0)
       .toString();
@@ -1151,24 +727,24 @@ export class SolanaSDK {
 
       if (!mint) {
         console.error(
-          `address: ${address} tx: ${detail.transaction.signatures[0]} mint not found`
+          `address: ${address} tx: ${detail.transaction.signatures[0]} mint not found`,
         );
         continue;
       }
 
       const preTokenBalance = detail.meta?.preTokenBalances?.find(
-        (item) => item.mint === mint && item.owner === address
+        (item) => item.mint === mint && item.owner === address,
       );
 
       if (!preTokenBalance) {
         console.error(
-          `address: ${address} tx: ${detail.transaction.signatures[0]} preTokenBalance not found`
+          `address: ${address} tx: ${detail.transaction.signatures[0]} preTokenBalance not found`,
         );
         continue;
       }
 
       const tokenBalanceChange = new Decimal(
-        postTokenBalance?.uiTokenAmount?.amount || 0
+        postTokenBalance?.uiTokenAmount?.amount || 0,
       )
         .sub(preTokenBalance?.uiTokenAmount?.amount || 0)
         .toString();
@@ -1200,7 +776,7 @@ export class SolanaSDK {
       param.from,
       param.from.publicKey,
       null,
-      param.decimals
+      param.decimals,
     );
 
     // Create associated token account for the mint owner
@@ -1208,7 +784,7 @@ export class SolanaSDK {
       this.connection,
       param.from,
       mint,
-      param.from.publicKey
+      param.from.publicKey,
     );
 
     // Mint tokens to the owner's account
@@ -1218,8 +794,10 @@ export class SolanaSDK {
       mint,
       tokenAccount.address,
       param.from.publicKey,
-      BigInt(new Decimal(param.initialSupply).mul(10 ** param.decimals).toString()),
-      []
+      BigInt(
+        new Decimal(param.initialSupply).mul(10 ** param.decimals).toString(),
+      ),
+      [],
     );
 
     // Create Umi instance
@@ -1237,23 +815,30 @@ export class SolanaSDK {
     // Set the signer as the identity
     umi.use(signerIdentity(signer));
 
-    const umiImageFile = await fetch(param.imageUrl).then(res => res.arrayBuffer())
+    const umiImageFile = await fetch(param.imageUrl).then((res) =>
+      res.arrayBuffer(),
+    );
 
-    const imageUri = await umi.uploader.upload([{
-      buffer: Buffer.from(umiImageFile),
-      fileName: "image.png",
-      displayName: "image.png",
-      uniqueName: "image.png",
-      contentType: "image/png",
-      extension: "png",
-      tags: [{
-        name: "image",
-        value: "image.png",
-      }],
-    }]).catch((err) => {
-      throw new Error(err)
-    })
-
+    const imageUri = await umi.uploader
+      .upload([
+        {
+          buffer: Buffer.from(umiImageFile),
+          fileName: "image.png",
+          displayName: "image.png",
+          uniqueName: "image.png",
+          contentType: "image/png",
+          extension: "png",
+          tags: [
+            {
+              name: "image",
+              value: "image.png",
+            },
+          ],
+        },
+      ])
+      .catch((err) => {
+        throw new Error(err);
+      });
 
     // Create metadata
     const metadata = {
@@ -1265,12 +850,10 @@ export class SolanaSDK {
     };
 
     const metadataUri = await umi.uploader.uploadJson(metadata).catch((err) => {
-      throw new Error(err)
-    })
-
+      throw new Error(err);
+    });
 
     // Create metadata URI (you might want to upload this to IPFS or similar)
-
 
     const metadataAccountAddress = await findMetadataPda(umi, {
       mint: publicKey(mint.toBase58()),
@@ -1278,9 +861,9 @@ export class SolanaSDK {
 
     await new Promise((resolve, reject) => {
       setTimeout(() => {
-        resolve(true)
-      }, 20000)
-    })
+        resolve(true);
+      }, 20000);
+    });
 
     // Create token metadata
     const builder = await createV1(umi, {
@@ -1305,8 +888,74 @@ export class SolanaSDK {
         signature,
       };
     } catch (e) {
-      throw e
+      throw e;
     }
-
   }
+
+  async sendTransaction(param: {
+    versionedTransactionHex: string;
+  }) {
+
+    
+
+    const signature = await this.connection.sendRawTransaction(
+      Buffer.from(param.versionedTransactionHex, "hex"),
+      {
+        skipPreflight: false,
+        preflightCommitment: "confirmed",
+      },
+    );
+
+    return signature;
+  }
+}
+
+export async function buildConnectMessage(param: {
+  account: string;
+  domain: string;
+  statement: string;
+}) {
+  const domain = param.domain;
+  const address = param.account;
+  const statement = param.statement;
+  const nonce = Math.random().toString(36).substring(2);
+  const issuedAt = new Date().toISOString();
+  const expirationTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+  const message = `${domain} wants you to sign in with your Solana account:
+${address}
+
+${statement}
+
+URI: ${domain}
+Version: 1
+Chain ID: solana:mainnet
+Nonce: ${nonce}
+Issued At: ${issuedAt}
+Expiration Time: ${expirationTime}`;
+
+  return message;
+}
+
+export async function verifySignature(param: {
+  signature: string;
+  message: string;
+  address: string;
+}) {
+  const messageBytes = new TextEncoder().encode(param.message);
+  const signatureBytes = new Uint8Array(Buffer.from(param.signature, "hex"));
+  const publicKey = new PublicKey(param.address);
+
+  const isValid = tweetnacl.sign.detached.verify(
+    messageBytes,
+    signatureBytes,
+    publicKey.toBytes(),
+  );
+  return isValid;
+}
+
+export function signMessage(secretKey: Uint8Array, message: string) {
+  const messageBytes = new TextEncoder().encode(message);
+  const signatureBytes = tweetnacl.sign.detached(messageBytes, secretKey);
+  return signatureBytes;
 }

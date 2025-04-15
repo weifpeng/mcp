@@ -3,24 +3,30 @@
   "version": "1.0.0",
   "description": "TRPC",
   "private": true,
+  "main": "./dist/index.js",
+  "module": "./src/index.ts",
   "type": "module",
-  "main": "./src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "pkgroll"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mcp/solana": "workspace:^",
+    "@solana/web3.js": "^1.95.5",
     "@trpc/client": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "bs58": "^6.0.0",
     "decimal.js": "^10.5.0",
+    "lodash": "^4.17.21",
+    "uuid": "^11.1.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@mcp/solana": "workspace:^",
-    "@repo/typescript-config": "workspace:^",
+    "@tokenpocket/typescript-config": "workspace:^",
     "@types/express": "^5.0.1",
+    "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.14",
     "dotenv": "^16.4.7"
   }

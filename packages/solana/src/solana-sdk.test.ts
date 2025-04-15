@@ -1,8 +1,12 @@
 import "dotenv/config";
-import { SolanaSDK } from "./index";
 import { z } from "zod";
+import { buildConnectMessage, SolanaSDK, verifySignature } from "./index.js";
+import * as nacl from "tweetnacl";
 
-import { beforeEach, describe, expect, test } from "vitest";
+import {
+  createCloseAccountInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import {
   Keypair,
   PublicKey,
@@ -10,16 +14,9 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import bs58 from "bs58";
-import {
-  createCloseAccountInstruction,
-  createMint,
-  getAssociatedTokenAddressSync,
-  getMint,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-} from "@solana/spl-token";
-import { Decimal } from "@nemo-rewards/lib/decimal";
+import { Decimal } from "decimal.js";
 import fs from "node:fs";
+import { beforeEach, describe, expect, test } from "vitest";
 
 const testConfigSchema = z.object({
   RPC_URL: z.string(),
@@ -32,77 +29,80 @@ const testConfig = testConfigSchema.parse(process.env);
 
 const TOKEN_ADDRESS = "AfVVmY8N9kjwCQnV4yFRBYMJvFNb2W6dBfwNN1vUXP7r";
 
-test("create customer token", { timeout: 1000 * 60 }, async () => {
-  const solana = new SolanaSDK({
-    rpcUrl: testConfig.RPC_URL,
-    privateKey: testConfig.PRIVATE_KEY,
-    heliusApiKey: testConfig.HELIUS_API_KEY,
+test("verify signature", { timeout: 1000 * 60 * 10 }, async () => {
+  const adminPayer = Keypair.fromSecretKey(
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
+  );
+  const message = await buildConnectMessage({
+    account: adminPayer.publicKey.toBase58(),
+    domain: "test",
+    statement: "test",
   });
 
-  const mintWallet = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
-  );
-  console.log(mintWallet.publicKey.toBase58());
+  const messageBytes = new TextEncoder().encode(message);
+  const signature = nacl.sign.detached(messageBytes, adminPayer.secretKey);
 
-  const mint = await createMint(
-    solana.connection,
-    mintWallet,
-    mintWallet.publicKey,
-    null,
-    6
-  );
+  const isValid = await verifySignature({
+    signature: Buffer.from(signature).toString("hex"),
+    message,
+    address: adminPayer.publicKey.toBase58(),
+  });
 
-  console.log(mint.toBase58());
-
-  const toWalletTokenAccount = await getOrCreateAssociatedTokenAccount(
-    solana.connection,
-    mintWallet,
-    mint,
-    mintWallet.publicKey
-  );
-
-  await mintTo(
-    solana.connection,
-    mintWallet,
-    mint,
-    toWalletTokenAccount.address,
-    mintWallet.publicKey,
-    10000 * 10 ** 6, // it's 1 token, but in lamports
-    []
-  );
+  expect(isValid).toBe(true);
 });
 
-test("mint token ", async () => {
+test("create token instruction", { timeout: 1000 * 60 * 10 }, async () => {
   const solana = new SolanaSDK({
     rpcUrl: testConfig.RPC_URL,
-    privateKey: testConfig.PRIVATE_KEY,
-    heliusApiKey: testConfig.HELIUS_API_KEY,
   });
 
-  const mintWallet = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+  const adminPayer = Keypair.fromSecretKey(
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
-  console.log(mintWallet.publicKey.toBase58());
+  const instruction = await solana.buildCreateMintTransactionInstruction({
+    from: adminPayer.publicKey,
+    name: "test",
+    symbol: "test",
+    decimals: 6,
+  });
 
-  const toWalletTokenAccount = await getOrCreateAssociatedTokenAccount(
-    solana.connection,
-    mintWallet,
-    new PublicKey(TOKEN_ADDRESS),
-    new PublicKey("FncizudA94jN5VgFru9rB1YaeTiqstdJyUn7JZUhVmzH")
+  const latestBlockhash = await solana.connection.getLatestBlockhash();
+
+  const tx = solana.buildTransaction({
+    instructions: [...instruction],
+    addressLookupTableAddresses: [],
+    blockhash: latestBlockhash.blockhash,
+    feePayer: adminPayer,
+  });
+
+  tx.sign([adminPayer]);
+
+  const serializedTx = tx.serialize();
+
+  console.log(serializedTx);
+});
+
+test("create token", { timeout: 1000 * 60 * 10 }, async () => {
+  const solana = new SolanaSDK({
+    rpcUrl: testConfig.RPC_URL,
+  });
+
+  const adminPayer = Keypair.fromSecretKey(
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
-  console.log(toWalletTokenAccount.address.toBase58());
+  const tokenInfo = await solana.createToken({
+    from: adminPayer,
+    name: "test",
+    symbol: "test",
+    decimals: 6,
+    initialSupply: 1000000,
+    imageUrl:
+      "https://storage.googleapis.com/storage.catbird.ai/predictions/257313940344803328/71e8c58f-988d-4455-bcb5-d1d15a4d55f9.png",
+  });
 
-  await mintTo(
-    solana.connection,
-    mintWallet,
-    new PublicKey(TOKEN_ADDRESS),
-    toWalletTokenAccount.address,
-    mintWallet.publicKey,
-    10000 * 10 ** 9, // it's 1 token, but in lamports
-    []
-  );
+  console.log(tokenInfo);
 });
 
 test("send token", { timeout: 1000 * 60 }, async () => {
@@ -113,7 +113,7 @@ test("send token", { timeout: 1000 * 60 }, async () => {
   });
 
   const from = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const toKeyPair = Keypair.generate();
@@ -214,11 +214,11 @@ test("getAddressTokenList", { timeout: 1000 * 60 }, async () => {
   });
 
   const mintWallet = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const result = await solana.getAddressTokenList(
-    mintWallet.publicKey.toBase58()
+    mintWallet.publicKey.toBase58(),
   );
 
   const balance = await solana.getTokenAccountBalance({
@@ -235,7 +235,7 @@ test("getSolBalance", { timeout: 1000 * 60 }, async () => {
     heliusApiKey: testConfig.HELIUS_API_KEY,
   });
   const balance = await solana.getSolBalance(
-    "2HuojpCGomMmbfuRmbo99ruVz5mHzoUMmWzmDWMgxVPx"
+    "2HuojpCGomMmbfuRmbo99ruVz5mHzoUMmWzmDWMgxVPx",
   );
   console.log(balance);
 });
@@ -263,13 +263,13 @@ test("token swap", { timeout: 1000 * 60 }, async () => {
   const from = Keypair.fromSecretKey(
     new Uint8Array(
       bs58.decode(
-        "5JLEJKM8mVdbdaUFEpZyj8a2sT2ZzX8VvXLRLMQwUr8QW1T768E3d2J6fJVnqkNQbaZv76b2F41j9CKo4ucgXL9z"
-      )
-    )
+        "5JLEJKM8mVdbdaUFEpZyj8a2sT2ZzX8VvXLRLMQwUr8QW1T768E3d2J6fJVnqkNQbaZv76b2F41j9CKo4ucgXL9z",
+      ),
+    ),
   );
 
   const to = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const { instructions: transactionInstructionList, lookupTableAddresses } =
@@ -285,11 +285,11 @@ test("token swap", { timeout: 1000 * 60 }, async () => {
   const unwarpSol = createCloseAccountInstruction(
     new PublicKey(from.publicKey.toBase58()),
     new PublicKey(from.publicKey.toBase58()),
-    from.publicKey
+    from.publicKey,
   );
 
   const feePayer = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const addressLookupTableAddresses =
@@ -325,7 +325,7 @@ test("token swap", { timeout: 1000 * 60 }, async () => {
     {
       skipPreflight: false,
       preflightCommitment: "confirmed",
-    }
+    },
   );
 
   // 等待确认
@@ -346,7 +346,7 @@ test.skip("send token", { timeout: 1000 * 60 * 10 }, async () => {
   });
 
   const adminPayer = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -363,7 +363,7 @@ test.skip("send token", { timeout: 1000 * 60 * 10 }, async () => {
   const getUsdcBalance = async (account: string) => {
     const ataAccount = getAssociatedTokenAddressSync(
       new PublicKey(usdc),
-      new PublicKey(account)
+      new PublicKey(account),
     );
     const balance = await solana.getTokenAccountBalance({
       tokenAccountAddress: ataAccount.toBase58(),
@@ -398,7 +398,7 @@ test.skip("send token", { timeout: 1000 * 60 * 10 }, async () => {
   expect(toBalance.eq(0.1)).toBe(true);
   console.log(transaction);
   console.log(
-    `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `
+    `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `,
   );
 
   // from 有 sol 对方有 ata
@@ -412,7 +412,7 @@ test.skip("send token", { timeout: 1000 * 60 * 10 }, async () => {
   const fromSolBalance = await solana.getSolBalance(from.publicKey.toBase58());
   expect(fromSolBalance).toBeGreaterThan(0);
   const adminPayerSolBalance = await solana.getSolBalance(
-    adminPayer.publicKey.toBase58()
+    adminPayer.publicKey.toBase58(),
   );
 
   const sol2AtaTransaction = await solana.sendToken({
@@ -465,7 +465,7 @@ describe("send token", { sequential: true }, () => {
   });
 
   const adminPayer = Keypair.fromSecretKey(
-    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY))
+    new Uint8Array(bs58.decode(testConfig.PRIVATE_KEY)),
   );
 
   const usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -473,7 +473,7 @@ describe("send token", { sequential: true }, () => {
   const getUsdcBalance = async (account: string) => {
     const ataAccount = getAssociatedTokenAddressSync(
       new PublicKey(usdc),
-      new PublicKey(account)
+      new PublicKey(account),
     );
     const balance = await solana.getTokenAccountBalance({
       tokenAccountAddress: ataAccount.toBase58(),
@@ -485,7 +485,7 @@ describe("send token", { sequential: true }, () => {
     fs.mkdirSync("./private-key", { recursive: true });
     fs.writeFileSync(
       `./private-key/${keypair.publicKey.toBase58()}.txt`,
-      bs58.encode(keypair.secretKey)
+      bs58.encode(keypair.secretKey),
     );
   };
 
@@ -493,18 +493,18 @@ describe("send token", { sequential: true }, () => {
   const from = Keypair.fromSecretKey(
     new Uint8Array(
       bs58.decode(
-        "hGhG2aerwEg8WUyioSyiKp739saJEftJucy1hDskUJuQcTUYKbbzTTyKm53n7aNLyEHqGffwmGyzSPwPKwnrJsK"
-      )
-    )
+        "hGhG2aerwEg8WUyioSyiKp739saJEftJucy1hDskUJuQcTUYKbbzTTyKm53n7aNLyEHqGffwmGyzSPwPKwnrJsK",
+      ),
+    ),
   );
 
   // 21GBZFUQeYLMW4xWYnseieDmoVx9TRbNfHBT4i9rRWCS
   const to = Keypair.fromSecretKey(
     new Uint8Array(
       bs58.decode(
-        "5qMnpP3E1LpA1S28yZHW3xStRDG9Q8ciTFUZLDH2t9TwvoEksPN6MFuHTZgvgzTM5JeyXYkqFtYvAVTZNHfQnsRC"
-      )
-    )
+        "5qMnpP3E1LpA1S28yZHW3xStRDG9Q8ciTFUZLDH2t9TwvoEksPN6MFuHTZgvgzTM5JeyXYkqFtYvAVTZNHfQnsRC",
+      ),
+    ),
   );
 
   const clearFromAndToAccount = async () => {
@@ -551,7 +551,7 @@ describe("send token", { sequential: true }, () => {
           from: from,
           to: adminPayer.publicKey.toBase58(),
           amount: fromSolBalance.toString(),
-        })
+        }),
       );
     }
 
@@ -561,7 +561,7 @@ describe("send token", { sequential: true }, () => {
           from: to,
           to: adminPayer.publicKey.toBase58(),
           amount: toSolBalance.toString(),
-        })
+        }),
       );
     }
 
@@ -583,7 +583,7 @@ describe("send token", { sequential: true }, () => {
       {
         skipPreflight: false,
         preflightCommitment: "confirmed",
-      }
+      },
     );
 
     // 等待确认
@@ -619,7 +619,7 @@ describe("send token", { sequential: true }, () => {
 
       expect(
         (await getUsdcBalance(from.publicKey.toBase58())).toString() ===
-          new Decimal(0.2 * 10 ** 6).toString()
+          new Decimal(0.2 * 10 ** 6).toString(),
       ).toBe(true);
 
       const transaction = await solana.sendToken({
@@ -635,17 +635,17 @@ describe("send token", { sequential: true }, () => {
         getUsdcBalance(to.publicKey.toBase58()),
       ]);
       expect(
-        new Decimal(fromBalance.toString()).lt(new Decimal(0.1 * 10 ** 6))
+        new Decimal(fromBalance.toString()).lt(new Decimal(0.1 * 10 ** 6)),
       ).toBe(true);
       expect(
-        new Decimal(toBalance.toString()).eq(new Decimal(0.1 * 10 ** 6))
+        new Decimal(toBalance.toString()).eq(new Decimal(0.1 * 10 ** 6)),
       ).toBe(true);
       console.log(transaction);
       console.log(
-        `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `
+        `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `,
       );
       await clearFromAndToAccount();
-    }
+    },
   );
   test("from none sol to ata account", { timeout: 1000 * 60 }, async () => {
     await solana.sendToken({
@@ -663,11 +663,11 @@ describe("send token", { sequential: true }, () => {
     await new Promise((resolve) => setTimeout(resolve, 10000));
     expect(
       (await getUsdcBalance(from.publicKey.toBase58())).toString() ===
-        new Decimal(0.1 * 10 ** 6).toString()
+        new Decimal(0.1 * 10 ** 6).toString(),
     ).toBe(true);
     expect(
       (await getUsdcBalance(to.publicKey.toBase58())).toString() ===
-        new Decimal(0.1 * 10 ** 6).toString()
+        new Decimal(0.1 * 10 ** 6).toString(),
     ).toBe(true);
 
     const transaction = await solana.sendToken({
@@ -685,11 +685,11 @@ describe("send token", { sequential: true }, () => {
 
     console.log(transaction);
     console.log(
-      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `
+      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `,
     );
     expect(new Decimal(fromBalance.toString()).lt(0.05)).toBe(true);
     expect(
-      new Decimal(toBalance.toString()).eq(new Decimal(0.15 * 10 ** 6))
+      new Decimal(toBalance.toString()).eq(new Decimal(0.15 * 10 ** 6)),
     ).toBe(true);
     await clearFromAndToAccount();
   });
@@ -709,7 +709,7 @@ describe("send token", { sequential: true }, () => {
 
     expect(
       (await getUsdcBalance(from.publicKey.toBase58())).toString() ===
-        new Decimal(0.1 * 10 ** 6).toString()
+        new Decimal(0.1 * 10 ** 6).toString(),
     ).toBe(true);
 
     const transaction = await solana.sendToken({
@@ -728,14 +728,14 @@ describe("send token", { sequential: true }, () => {
       solana.getSolBalance(from.publicKey.toBase58()),
     ]);
     console.log(
-      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `
+      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `,
     );
     expect(new Decimal(fromBalance.toString()).eq(new Decimal(0))).toBe(true);
     expect(
-      new Decimal(toBalance.toString()).eq(new Decimal(0.1 * 10 ** 6))
+      new Decimal(toBalance.toString()).eq(new Decimal(0.1 * 10 ** 6)),
     ).toBe(true);
     expect(
-      new Decimal(fromSolBalance).div(new Decimal(10 ** 9)).lt(0.005)
+      new Decimal(fromSolBalance).div(new Decimal(10 ** 9)).lt(0.005),
     ).toBe(true);
 
     await clearFromAndToAccount();
@@ -785,14 +785,14 @@ describe("send token", { sequential: true }, () => {
       solana.getSolBalance(from.publicKey.toBase58()),
     ]);
     console.log(
-      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `
+      `from: ${from.publicKey.toBase58()} ${fromBalance.toString()} to: ${to.publicKey.toBase58()} ${toBalance.toString()}  `,
     );
     expect(new Decimal(fromBalance.toString()).eq(new Decimal(0))).toBe(true);
     expect(
-      new Decimal(toBalance.toString()).eq(new Decimal(0.2 * 10 ** 6))
+      new Decimal(toBalance.toString()).eq(new Decimal(0.2 * 10 ** 6)),
     ).toBe(true);
     expect(
-      new Decimal(fromSolBalance).div(new Decimal(10 ** 9)).lt(0.005)
+      new Decimal(fromSolBalance).div(new Decimal(10 ** 9)).lt(0.005),
     ).toBe(true);
 
     await clearFromAndToAccount();
@@ -809,9 +809,9 @@ test("send token fee", { timeout: 1000 * 60 }, async () => {
   const from = Keypair.fromSecretKey(
     new Uint8Array(
       bs58.decode(
-        "3QSfqyPWzBNhH5RXw6yG9dHw37MGWyPmAjpTB3G3zPPey2zx4wyNpsTuArGqt6cTm4rirYJtPVnEZoXomwU6PBLJ"
-      )
-    )
+        "3QSfqyPWzBNhH5RXw6yG9dHw37MGWyPmAjpTB3G3zPPey2zx4wyNpsTuArGqt6cTm4rirYJtPVnEZoXomwU6PBLJ",
+      ),
+    ),
   );
 
   const to = "2HuojpCGomMmbfuRmbo99ruVz5mHzoUMmWzmDWMgxVPx";
@@ -855,8 +855,12 @@ test("send token fee", { timeout: 1000 * 60 }, async () => {
     feePayer: from,
   });
 
+  const data = finalVersionedTransaction.serialize();
+
+  console.log(Buffer.from(data).toString("hex"));
+
   const simulate = await solana.connection.simulateTransaction(
-    finalVersionedTransaction
+    finalVersionedTransaction,
   );
 
   console.log(simulate);
@@ -871,7 +875,7 @@ test("get transaction detail", { timeout: 1000 * 60 }, async () => {
   });
   const transaction = await solana.getTransactionListByAddress(
     "5QhfrY2hQABXnDXzBsQmafduwn7dKFJdPG8amuanLApn",
-    { limit: 5 }
+    { limit: 5 },
   );
   console.log(transaction);
 });
@@ -883,76 +887,92 @@ test("get balance change", { timeout: 1000 * 60 }, async () => {
     heliusApiKey: testConfig.HELIUS_API_KEY,
   });
   const transactionDetail = await solana.getTransactionDetail(
-    "DwkrZsk3YYdXsgQEYD1TqWA12nHG9J4KV6AfaWEa442yjMn9B3D9hyjtTtHFL4mktpLKeYmNNQihHWwPBK5qJ5z"
+    "DwkrZsk3YYdXsgQEYD1TqWA12nHG9J4KV6AfaWEa442yjMn9B3D9hyjtTtHFL4mktpLKeYmNNQihHWwPBK5qJ5z",
   );
   expect(transactionDetail).not.toBeNull();
 
   const balanceChange = solana.getBalanceChange(
     "FncizudA94jN5VgFru9rB1YaeTiqstdJyUn7JZUhVmzH",
-    transactionDetail!
+    transactionDetail!,
   );
   console.log(balanceChange);
 });
 
- 
-test("get token info",async ()=>{
-
+test("get token info", async () => {
   const solana = new SolanaSDK({
     rpcUrl: testConfig.RPC_URL,
     privateKey: testConfig.PRIVATE_KEY,
     heliusApiKey: testConfig.HELIUS_API_KEY,
   });
 
-  const tokenInfo = await solana.getTokenInfo("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-
-  console.log(tokenInfo);
-
-})
-
-test("create token",{timeout:1000*60*10},async ()=>{
-  const solana = new SolanaSDK({
-    rpcUrl: testConfig.RPC_URL,
-    privateKey: testConfig.PRIVATE_KEY,
-    heliusApiKey: testConfig.HELIUS_API_KEY,
-  });
-
-  const adminPayer = Keypair.fromSecretKey(
-    new Uint8Array(
-      bs58.decode(testConfig.PRIVATE_KEY)
-    )
+  const tokenInfo = await solana.getTokenInfo(
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
   );
 
-  const tokenInfo = await solana.createToken({
-    from: adminPayer,
-    name: "test",
-    symbol: "test",
-    decimals: 6,
-    initialSupply: 1000000,
-    imageUrl: "https://storage.googleapis.com/storage.catbird.ai/predictions/257313940344803328/71e8c58f-988d-4455-bcb5-d1d15a4d55f9.png",
-  });
-
   console.log(tokenInfo);
-})
+});
 
-test.only("list spl token",{timeout:1000*60*10},async ()=>{
+test("list spl token", { timeout: 1000 * 60 * 10 }, async () => {
   const solana = new SolanaSDK({
     rpcUrl: testConfig.RPC_URL,
     privateKey: testConfig.PRIVATE_KEY,
     heliusApiKey: testConfig.HELIUS_API_KEY,
   });
 
+  const tokenList = await solana.getAddressTokenList(
+    "2uw1ohVsF2BZukDip76iyAeKSE1rtwB1PPTuRssBWtbe",
+  );
 
-  const tokenList = await solana.getAddressTokenList("2uw1ohVsF2BZukDip76iyAeKSE1rtwB1PPTuRssBWtbe");
+  const tokenInfoList = await Promise.all(
+    tokenList.map(async (token) => {
+      const tokenBalance = await solana.getTokenAccountBalance(token);
+      const tokenInfo = await solana.getTokenInfo(tokenBalance.mint.toBase58());
 
-  const tokenInfoList = await Promise.all(tokenList.map(async (token)=>{
-    const tokenBalance = await solana.getTokenAccountBalance(token)
-    const tokenInfo = await solana.getTokenInfo(tokenBalance.mint.toBase58())
+      return {
+        ...tokenInfo,
+        balance: tokenBalance.amount,
+      };
+    }),
+  );
+});
 
+test.only("test send tx", { timeout: 1000 * 60 * 10 }, async () => {
+  const solana = new SolanaSDK({
+    rpcUrl: testConfig.RPC_URL,
+   
+  });
 
-    return {
-      ...tokenInfo,
-      balance: tokenBalance.amount
-    }
-  }))
+  const instruction = await solana.buildCreateMintTransactionInstruction({
+    from: new PublicKey(userAddress),
+    name,
+    symbol,
+    decimals,
+  });
 
-})
+  const latestBlockhash = await solana.connection.getLatestBlockhash();
+
+  const tx = solana.buildTransaction({
+    instructions: [...instruction],
+    addressLookupTableAddresses: [],
+    blockhash: latestBlockhash.blockhash,
+    feePayer: new PublicKey(userAddress),
+  });
+
+  
+
+  const transaction = VersionedTransaction.deserialize(
+    Buffer.from(hex, "hex"),
+  );
+
+  console.log(transaction);
+ 
+  const signature = await solana.connection.sendRawTransaction(
+    transaction.serialize(),
+    {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    },
+  );
+
+  console.log(signature);
+});
