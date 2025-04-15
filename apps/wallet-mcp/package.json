@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "pkgroll"
+    "build": "cp -r ../mcp-web/out ./out && pkgroll"
   },
   "keywords": [],
   "author": "",

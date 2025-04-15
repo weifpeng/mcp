@@ -177,7 +177,7 @@ export class SolanaSDK {
       ],
       addressLookupTableAddresses,
       blockhash,
-      feePayer,
+      feePayer: feePayer.publicKey,
     });
 
     const { computeUnitPrice, unitsConsumed, error } =
@@ -437,7 +437,7 @@ export class SolanaSDK {
           instructions: simulateTransaction,
           addressLookupTableAddresses: [],
           blockhash: param.blockhash,
-          feePayer: param.from,
+          feePayer: param.from.publicKey,
         }),
       });
 
@@ -463,7 +463,7 @@ export class SolanaSDK {
       instructions: finalInstructions,
       addressLookupTableAddresses: [],
       blockhash: param.blockhash,
-      feePayer: param.from,
+      feePayer: param.from.publicKey,
     });
 
     return {
@@ -895,9 +895,6 @@ export class SolanaSDK {
   async sendTransaction(param: {
     versionedTransactionHex: string;
   }) {
-
-    
-
     const signature = await this.connection.sendRawTransaction(
       Buffer.from(param.versionedTransactionHex, "hex"),
       {

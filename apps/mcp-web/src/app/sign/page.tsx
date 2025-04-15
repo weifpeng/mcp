@@ -28,12 +28,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { toast } from "sonner";
 
-export default function SignPage() {
-  const param = useSearchParams();
-  const id = param.get("id");
+// Component to handle the search parameters
+function SignContent() {
+  const params = useSearchParams();
+  const id = params?.get("id");
   const [isSigningInProgress, setIsSigningInProgress] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const [signSuccess, setSignSuccess] = useState(false);
@@ -283,5 +284,22 @@ export default function SignPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Loading fallback component
+function SignLoading() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <Loader2 className="w-10 h-10 animate-spin" />
+    </div>
+  );
+}
+
+export default function SignPage() {
+  return (
+    <Suspense fallback={<SignLoading />}>
+      <SignContent />
+    </Suspense>
   );
 }

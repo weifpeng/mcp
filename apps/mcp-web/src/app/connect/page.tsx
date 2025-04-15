@@ -110,13 +110,7 @@ export default function Connect() {
       return;
     }
 
-    console.log(" tp click");
-
     await connect("tp");
-    console.log(" tp connect");
-
-    console.log(wallet)
-    console.log(wallet?.isConnected())
 
     setWalletConnect(true);
   };

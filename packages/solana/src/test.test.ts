@@ -1,29 +1,13 @@
 import {
-  createAccount,
-  getMint,
-  TOKEN_2022_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import "dotenv/config";
-import {
-  Connection,
-  Transaction,
   TransactionMessage,
-  VersionedMessage,
-  VersionedTransaction,
+  VersionedTransaction
 } from "@solana/web3.js";
+import "dotenv/config";
 import { z } from "zod";
 
-import { expect, test } from "vitest";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import bs58 from "bs58";
-import {
-  createMint,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-} from "@solana/spl-token";
+import { PublicKey } from "@solana/web3.js";
+import { test } from "vitest";
 import { SolanaSDK } from ".";
-import { Decimal } from "@nemo-rewards/lib/decimal";
 
 const testConfigSchema = z.object({
   RPC_URL: z.string(),

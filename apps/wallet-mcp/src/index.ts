@@ -7,6 +7,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import open from "open";
 import { z } from "zod";
 import { poolAndWaitting } from "./lib";
+import path from "node:path";
 
 const caller = createCaller({});
 
@@ -184,13 +185,17 @@ async function main() {
 
   app.use("/trpc", trpcExpressMiddleware);
 
-  app.use(
-    "/",
-    createProxyMiddleware({
-      target: "http://127.0.0.1:3000",
-      changeOrigin: true,
-    }),
-  );
+  if (process.env.NODE_ENV === "development") {
+    app.use(
+      "/",
+      createProxyMiddleware({
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      }),
+    );
+  } else {
+    app.use("/", express.static("../out"));
+  }
 
   const url = new URL(BASE_URL);
 
