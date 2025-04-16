@@ -3,8 +3,8 @@ import { SolanaAdapter } from "@reown/appkit-adapter-solana/react";
 import { solana, solanaDevnet, solanaTestnet } from "@reown/appkit/networks";
 import { createAppKit } from "@reown/appkit/react";
 import {
-    PhantomWalletAdapter,
-    SolflareWalletAdapter,
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
 
 const solanaWeb3JsAdapter = new SolanaAdapter({
@@ -22,6 +22,10 @@ const metadata = {
 createAppKit({
   adapters: [solanaWeb3JsAdapter],
   networks: [solana, solanaTestnet, solanaDevnet],
+  features: {
+    connectMethodsOrder: ["wallet"],
+    swaps: false,
+  },
   metadata: metadata,
   projectId,
   themeMode: "light",
@@ -34,4 +38,3 @@ export default function WalletConnectProvider({
 }>) {
   return children;
 }
-

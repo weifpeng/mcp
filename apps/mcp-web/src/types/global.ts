@@ -1,6 +1,6 @@
 import type { PublicKey, VersionedTransaction } from "@solana/web3.js";
 
-interface TokenPocketSolana {
+interface TokenPocketSolanaWallet {
   signMessage(message: Uint8Array): Promise<{
     publicKey: PublicKey;
     signature: Uint8Array;
@@ -11,10 +11,16 @@ interface TokenPocketSolana {
   signTransaction(
     transaction: VersionedTransaction,
   ): Promise<VersionedTransaction>;
+  disconnect(): Promise<void>;
+}
+
+interface TokenPocketEvmWallet {
+  request(params: { method: string }): Promise<any>;
 }
 
 interface TokenPocket {
-  solana: TokenPocketSolana;
+  solana: TokenPocketSolanaWallet;
+  ethereum: TokenPocketEvmWallet;
 }
 
 declare global {

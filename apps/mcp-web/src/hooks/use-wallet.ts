@@ -4,24 +4,29 @@ import { useAppKitWallet } from "@reown/appkit-wallet-button/react";
 import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/react";
 import { VersionedTransaction } from "@solana/web3.js";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface IWallet {
   currAddress: string | null;
   pending: boolean;
   isConnected: () => boolean;
   getAccount: () => Promise<string>;
-  connect: () => Promise<void>;
+  connect: (network: "solana" | "evm") => Promise<void>;
   signMessage: (message: string) => Promise<string>;
   signTransaction: (transactionHex: string) => Promise<string>;
+  disconnect: () => Promise<void>;
   type: "tp" | "wc";
 }
 
-export const useTpWallet = () => {
-  useEffect(() => {
-    if (!window.tokenpocket?.solana.isConnected) return;
-  }, []);
+type UseWalletType = (param: { network: "solana" | "evm" }) => IWallet;
 
+const getTpWallet = (network: "solana" | "evm") => {
+  if (network === "solana") {
+    return window.tokenpocket?.solana;
+  }
+  return window.tokenpocket?.solana;
+};
+export const useTpWallet: UseWalletType = ({ network }) => {
   const {
     data: currAddress,
     isLoading: pending,
@@ -29,9 +34,9 @@ export const useTpWallet = () => {
   } = useQuery({
     queryKey: ["tp-wallet"],
     queryFn: async () => {
-      if (!isTpExtensionInstall) return "";
-      if (!window.tokenpocket?.solana.isConnected) return null;
-      const address = await window.tokenpocket.solana.getAccount();
+      if (!isTpExtensionInstall()) return "";
+      if (!getTpWallet(network)?.isConnected) return null;
+      const address = await getTpWallet(network)?.getAccount();
       return address;
     },
   });
@@ -43,19 +48,20 @@ export const useTpWallet = () => {
       if (!isTpExtensionInstall()) {
         return false;
       }
-      return window.tokenpocket?.solana.isConnected;
+      return getTpWallet(network)?.isConnected;
     },
     getAccount: async () => {
       if (!isTpExtensionInstall()) {
         return "";
       }
-      return window.tokenpocket?.solana.getAccount();
+      return getTpWallet(network)?.getAccount();
     },
     connect: async () => {
+      console.log(getTpWallet(network));
       if (!isTpExtensionInstall()) {
         return;
       }
-      await window.tokenpocket?.solana.connect();
+      await getTpWallet(network)?.connect();
       await refetch();
     },
     signMessage: async (message: string) => {
@@ -63,7 +69,7 @@ export const useTpWallet = () => {
         return "";
       }
 
-      const data = await window.tokenpocket?.solana.signMessage(
+      const data = await getTpWallet(network)?.signMessage(
         new TextEncoder().encode(message),
       );
       if (!data) return "";
@@ -73,17 +79,24 @@ export const useTpWallet = () => {
       if (!isTpExtensionInstall()) {
         return "";
       }
-      const data = await window.tokenpocket?.solana.signTransaction(
+      const data = await getTpWallet(network)?.signTransaction(
         VersionedTransaction.deserialize(Buffer.from(transactionHex, "hex")),
       );
       if (!data) return "";
       return Buffer.from(data.serialize()).toString("hex");
     },
+    disconnect: async () => {
+      if (!isTpExtensionInstall()) {
+        return;
+      }
+      await getTpWallet(network)?.disconnect();
+    },
+
     type: "tp",
   } as IWallet;
 };
 
-export const useWcWallet = () => {
+export const useWcWallet: UseWalletType = ({ network }) => {
   const { walletProvider } = useAppKitProvider<Provider>("solana");
   const { status } = useAppKitAccount();
 
@@ -138,6 +151,9 @@ export const useWcWallet = () => {
           await walletProvider.signTransaction(transaction);
         return Buffer.from(signedTransaction.serialize()).toString("hex");
       },
+      disconnect: async () => {
+        await walletProvider.disconnect();
+      },
       type: "wc",
     } as IWallet;
   }, [
@@ -160,39 +176,42 @@ export const useWcWallet = () => {
 
 export function useWallet({
   address,
-  network,
 }: { address?: string; network: "solana" }) {
-  const tpWallet = useTpWallet();
-  const wcWallet = useWcWallet();
   const [wallet, setWallet] = useState<IWallet | null>(null);
+  const [network, setNetwork] = useState<"solana" | "evm">("solana");
+  const tpWallet = useTpWallet({ network });
+  const wcWallet = useWcWallet({ network });
 
   useEffect(() => {
     if (wcWallet.currAddress === address) {
       setWallet(wcWallet);
       return;
     }
-
-    if (isTpExtensionInstall()) {
-      setWallet(tpWallet);
-      return;
-    }
-
     if (wcWallet.isConnected() || wcWallet.pending) {
       setWallet(wcWallet);
       return;
     }
-
     setWallet(tpWallet);
   }, [tpWallet.currAddress, wcWallet.currAddress, wcWallet.pending, address]);
 
   return {
-    wallet,
-    connect: async (type: "tp" | "wc") => {
+    wallet: {
+      ...wallet,
+      disconnect: async () => {
+        setWallet(null);
+        return wallet?.disconnect();
+      },
+    },
+    connect: async (
+      type: "tp" | "wc",
+      network: "solana" | "evm" = "solana",
+    ) => {
+      setNetwork(network);
       if (type === "tp") {
-        await tpWallet.connect();
+        await tpWallet.connect(network);
         setWallet(tpWallet);
       } else {
-        await wcWallet.connect();
+        await wcWallet.connect(network);
         setWallet(wcWallet);
       }
     },

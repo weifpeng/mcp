@@ -151,7 +151,7 @@ export default function Marketplace() {
   };
 
   return (
-    <div className="container mx-auto   space-y-6">
+    <div className="container mx-auto   space-y-6 py-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-3xl font-bold">MCP Marketplace</h1>
         <div className="relative w-full md:w-80">
@@ -239,7 +239,9 @@ export default function Marketplace() {
                     key={tag}
                     variant="secondary"
                     className="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                    onClick={() => !selectedTags.includes(tag) && toggleTag(tag)}
+                    onClick={() =>
+                      !selectedTags.includes(tag) && toggleTag(tag)
+                    }
                   >
                     {tag}
                   </Badge>
