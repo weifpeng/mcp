@@ -6,6 +6,9 @@
       "dependsOn": [
         "^build"
       ],
+      "env": [
+        "RPC_URL"
+      ],
       "inputs": [
         "$TURBO_DEFAULT$",
         ".env*"
