@@ -21,7 +21,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 justify-between items-center max-w-6xl mx-auto px-4">
+        <div className="flex h-16 justify-between items-center max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="font-bold text-xl">
               MCP
@@ -47,7 +47,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 py-6">{children}</div>
+        <div className="max-w-7xl mx-auto px-4 py-6">{children}</div>
       </main>
     </div>
   );
