@@ -53,7 +53,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay className=" backdrop-blur-sm bg-white/10" />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
