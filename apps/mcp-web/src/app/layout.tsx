@@ -4,8 +4,9 @@ import { TrpcProvider } from "@/context/trpc";
 import "./globals.css";
 
 import WalletConnectProvider from "@/context/wallet-connect";
- 
-export default function RootLayout({
+import { RootLayout } from "@/components/root-layout";
+
+export default function Layout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -15,7 +16,7 @@ export default function RootLayout({
       <body>
         <WalletConnectProvider>
           <TrpcProvider>
-            {children}
+            <RootLayout>{children}</RootLayout>
             <Toaster position="top-right" />
           </TrpcProvider>
         </WalletConnectProvider>

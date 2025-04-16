@@ -154,7 +154,7 @@ function SignContent() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen p-4   dark:bg-gray-900">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
