@@ -24,7 +24,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
         <div className="flex h-16 justify-between items-center max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-6">
             <Link href="/" className="font-bold text-xl">
-              MCP
+              TokenPocket MCP
             </Link>
             <NavigationMenu>
               <NavigationMenuList className="flex space-x-2">

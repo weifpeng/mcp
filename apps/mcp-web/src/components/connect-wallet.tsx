@@ -300,9 +300,9 @@ export function ConnectWallet({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
   useEffect(() => {
-    if (!open || isDisconnectRef.current) return;
+    if (!openConnectModal || isDisconnectRef.current) return;
     init();
-  }, [wallet?.currAddress, open]);
+  }, [wallet?.currAddress, openConnectModal]);
 
   const handleConnect = async () => {
     isDisconnectRef.current = false;
