@@ -1,92 +1,125 @@
 import { verifySignature } from "@mcp/solana";
 import * as trpcExpress from "@trpc/server/adapters/express";
 import type { RequestHandler } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
-import { getGlobalData, setGlobalData } from "./provider";
 import { getSolanaSdk } from "./provider/solana-sdk";
-import { signDataSchema } from "./provider/storage/type";
-import { createCallerFactory, publicProcedure, router } from "./trpc";
+import {
+  createCallerFactory,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from "./trpc";
+
+import { db } from "./provider/storage/database";
+import { and, desc, eq, isNull, not } from "drizzle-orm";
+import {
+  signDataInsertSchema,
+  signDataSelectSchema,
+  signDataTable,
+} from "@mcp/database/src/db/schema";
+import { jwtVerify, SignJWT } from "jose";
+import { config } from "./config";
+import { redisStorage, walletSchema } from "./provider/storage/redis";
+import { TRPCError } from "@trpc/server";
 
 export const appRouter = router({
-  initWallet: publicProcedure
+  test: publicProcedure.mutation(async ({ input }) => {
+    return { test: "hello" };
+  }),
+  connect: publicProcedure
     .input(
       z.object({
-        network: z.enum(["solana", "ethereum"]),
-        address: z.string(),
-        signature: z.string(),
+        uuid: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      console.log("connect", input);
+      const token = await redisStorage.getToken(input.uuid);
+      console.log("token", token);
+      return token;
+    }),
+
+  signIn: publicProcedure
+    .input(
+      z.object({
+        uuid: z.string().nullish(),
         message: z.string(),
+        signature: z.string(),
+        wallet: walletSchema,
       }),
     )
     .mutation(async ({ input }) => {
       const isValid = await verifySignature({
         signature: input.signature,
         message: input.message,
-        address: input.address,
+        address: input.wallet.address,
       });
 
       if (!isValid) {
-        throw new Error("Invalid signature");
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Invalid signature",
+        });
       }
 
-      await setGlobalData({
-        addressData: [
-          {
-            address: input.address,
-            signature: input.signature,
-            message: input.message,
-            network: input.network,
-          },
-        ],
-      });
+      const token = await new SignJWT({
+        uuid: input.uuid,
+        address: input.wallet.address,
+        role: "DAPP",
+      })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime("1w")
+        .sign(new TextEncoder().encode(config.jwtSecret));
+      if (input.uuid) {
+        const token = await new SignJWT({
+          uuid: input.uuid,
+          address: input.wallet.address,
+          role: "MCP",
+        })
+          .setProtectedHeader({ alg: "HS256" })
+          .setExpirationTime("24h")
+          .sign(new TextEncoder().encode(config.jwtSecret));
 
-      return input.address;
+        await redisStorage.setToken(input.uuid, token);
+        await redisStorage.setCurrentWallet(input.uuid, input.wallet);
+      }
+
+      return token;
     }),
+  getWallet: protectedProcedure.query(async ({ input, ctx }) => {
+    const wallet = await redisStorage.getCurrentWallet(ctx.uuid);
+    return wallet;
+  }),
 
-  getWallet: publicProcedure
+  addSignData: protectedProcedure
     .input(
-      z.object({
-        network: z.enum(["solana", "ethereum"]),
-      }),
-    )
-    .query(async ({ input }) => {
-      const data = await getGlobalData();
-      return data.addressData.find(
-        (addressData) => addressData.network === input.network,
-      );
-    }),
-
-  addSignData: publicProcedure
-    .input(
-      signDataSchema.pick({
+      signDataInsertSchema.pick({
         address: true,
         dataHex: true,
         type: true,
         network: true,
       }),
     )
-    .mutation(async ({ input }) => {
-      const id = uuidv4();
+    .mutation(async ({ input, ctx }) => {
+      const currentWallet = await redisStorage.getCurrentWallet(ctx.uuid);
 
-      await setGlobalData({
-        signData: [
-          {
-            id,
-            address: input.address,
-            dataHex: input.dataHex,
-            type: input.type,
-            network: input.network,
-            signedDataHex: "",
-          },
-        ],
-      });
-
-      return id;
+      if (!currentWallet) {
+        throw new Error("Wallet not found");
+      }
+      const data = await db
+        .insert(signDataTable)
+        .values({
+          ...input,
+          createdBy: ctx.uuid,
+        })
+        .returning();
+      return data[0]?.id;
     }),
 
-  submitSignedData: publicProcedure
+  submitSignedData: protectedProcedure
     .input(
-      signDataSchema
+      signDataInsertSchema
+        .required()
         .pick({
           id: true,
           signedDataHex: true,
@@ -97,41 +130,98 @@ export const appRouter = router({
           }),
         ),
     )
-    .mutation(async ({ input }) => {
-      const data = await getGlobalData();
+    .mutation(async ({ input, ctx }) => {
+      const signDataArr = await db
+        .select()
+        .from(signDataTable)
+        .where(eq(signDataTable.id, input.id));
+      const signData = signDataArr[0];
 
-      const item = data.signData.find((signData) => signData.id === input.id);
-
-      if (!item) {
-        throw new Error("Sign data not found");
+      if (signData?.createdBy !== ctx.uuid) {
+        throw new Error("uuid not match");
       }
 
-      await setGlobalData({
-        signData: [
-          {
-            ...item,
-            id: input.id,
-            signedDataHex: input.signedDataHex,
-            txHash: input.txHash,
-          },
-        ],
-      });
-
-      return input.signedDataHex;
+      await db
+        .update(signDataTable)
+        .set({
+          signedDataHex: input.signedDataHex,
+          txHash: input.txHash,
+          updatedBy: ctx.uuid,
+        })
+        .where(eq(signDataTable.id, signData.id));
     }),
 
-  getSignData: publicProcedure
+  getSignData: protectedProcedure
     .input(
       z.object({
         id: z.string(),
       }),
     )
-    .query(async ({ input }) => {
-      const data = await getGlobalData();
-      return data.signData.find((signData) => signData.id === input.id);
+    .output(
+      signDataSelectSchema
+        .pick({
+          id: true,
+          address: true,
+          dataHex: true,
+          network: true,
+          type: true,
+          txHash: true,
+          createdAt: true,
+          signedDataHex: true,
+        })
+        .nullable(),
+    )
+    .query(async ({ input, ctx }) => {
+      const signDataArr = await db
+        .select()
+        .from(signDataTable)
+        .where(eq(signDataTable.id, input.id));
+      const signData = signDataArr[0];
+
+      if (signData?.createdBy !== ctx.uuid) {
+        return null;
+      }
+
+      return signData;
     }),
 
-  sendTransaction: publicProcedure
+  getSignDataList: protectedProcedure
+    .input(
+      z.object({
+        isSigned: z.boolean().nullish(),
+      }),
+    )
+    .output(
+      z.array(
+        signDataSelectSchema.pick({
+          id: true,
+          address: true,
+          dataHex: true,
+          createdAt: true,
+          type: true,
+          network: true,
+          signedDataHex: true,
+        }),
+      ),
+    )
+    .query(async ({ input, ctx }) => {
+      const signDataArr = await db
+        .select()
+        .from(signDataTable)
+        .where(
+          and(
+            eq(signDataTable.createdBy, ctx.uuid),
+            input.isSigned
+              ? not(isNull(signDataTable.signedDataHex))
+              : isNull(signDataTable.signedDataHex),
+          ),
+        )
+        .orderBy(desc(signDataTable.createdAt));
+
+      return signDataArr;
+    }),
+
+  sendTransaction: protectedProcedure
     .input(
       z.object({
         signedDataHex: z.string(),
@@ -149,6 +239,25 @@ export const appRouter = router({
 // Export type router type signature,
 // NOT the router itself.
 export type AppRouter = typeof appRouter;
+
+export const createContext = async (token?: string | null) => {
+  if (!token) {
+    return { uuid: null };
+  }
+  try {
+    const data = await jwtVerify(
+      token,
+      new TextEncoder().encode(config.jwtSecret),
+    );
+    if (data.payload.exp && data.payload.exp < Date.now() / 1000) {
+      throw new Error("Unauthorized");
+    }
+    return { uuid: data.payload.uuid as string };
+  } catch (e) {
+    console.log(e);
+    return { uuid: null };
+  }
+};
 
 export const trpcExpressMiddleware: RequestHandler =
   trpcExpress.createExpressMiddleware<AppRouter>({

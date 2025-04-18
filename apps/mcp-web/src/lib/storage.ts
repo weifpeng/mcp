@@ -1,9 +1,13 @@
 import { z } from "zod";
+import { useLocalStorageState } from "ahooks";
 
 export const storageKeySchema = z.enum([
   "connect_message",
   "wallet_type",
   "setting",
+  "token",
+  "connect_id",
+  "sign_data_id",
 ]);
 
 export const getStorage = (key: z.infer<typeof storageKeySchema>) => {
@@ -34,4 +38,38 @@ export const getSetting = () => {
 
 export const setSetting = (setting: z.infer<typeof settingSchema>) => {
   setStorage("setting", JSON.stringify(setting));
+};
+
+export const getToken = () => {
+  return getStorage("token");
+};
+
+export const setToken = (token: string) => {
+  setStorage("token", token);
+};
+
+export const getConnectId = () => {
+  return getStorage("connect_id");
+};
+
+export const setConnectId = (connectId: string) => {
+  setStorage("connect_id", connectId);
+};
+
+export const clearAll = () => {
+  globalThis.localStorage.clear();
+};
+
+export const useTokenState = () => {
+  return useLocalStorageState<string | undefined>(storageKeySchema.enum.token, {
+    defaultValue: "",
+    listenStorageChange: true,
+  });
+};
+
+export const useSignDataState = () => {
+  return useLocalStorageState<string>(storageKeySchema.enum.sign_data_id, {
+    defaultValue: "",
+    listenStorageChange: true,
+  });
 };

@@ -5,6 +5,7 @@ import "./globals.css";
 
 import WalletConnectProvider from "@/context/wallet-connect";
 import { RootLayout } from "@/components/root-layout";
+import { AppContextProvider } from "@/context/app-context";
 
 export default function Layout({
   children,
@@ -14,12 +15,14 @@ export default function Layout({
   return (
     <html lang="en">
       <body>
-        <WalletConnectProvider>
-          <TrpcProvider>
-            <RootLayout>{children}</RootLayout>
-            <Toaster position="top-right" />
-          </TrpcProvider>
-        </WalletConnectProvider>
+        <AppContextProvider>
+          <WalletConnectProvider>
+            <TrpcProvider>
+              <RootLayout>{children}</RootLayout>
+              <Toaster position="top-right" />
+            </TrpcProvider>
+          </WalletConnectProvider>
+        </AppContextProvider>
       </body>
     </html>
   );

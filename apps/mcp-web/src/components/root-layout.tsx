@@ -8,7 +8,7 @@ import {
 import Link from "next/link";
 import { ConnectWallet } from "./connect-wallet";
 import { Button } from "./ui/button";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -47,7 +47,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4">{children}</div>
+        <div className="max-w-7xl mx-auto   ">{children}</div>
       </main>
     </div>
   );

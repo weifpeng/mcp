@@ -2,7 +2,7 @@
   "name": "@mcp/database",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "./src/db/index.ts",
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"

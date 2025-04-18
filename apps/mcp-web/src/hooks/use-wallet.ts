@@ -1,3 +1,5 @@
+import { storageKeySchema } from "@/lib/storage";
+import { getToken } from "@/lib/storage";
 import { isTpExtensionInstall } from "@/lib/utils";
 import type { Provider } from "@reown/appkit-adapter-solana";
 import { useAppKitWallet } from "@reown/appkit-wallet-button/react";
@@ -35,11 +37,24 @@ export const useTpWallet: UseWalletType = ({ network }) => {
     queryKey: ["tp-wallet"],
     queryFn: async () => {
       if (!isTpExtensionInstall()) return "";
-      if (!getTpWallet(network)?.isConnected) return null;
+      if (!getTpWallet(network)?.isConnected) {
+        return;
+      }
       const address = await getTpWallet(network)?.getAccount();
       return address;
     },
   });
+
+  const init = async () => {
+    if (getToken()) {
+      await getTpWallet(network)?.connect();
+    }
+    refetch();
+  };
+
+  useEffect(() => {
+    init();
+  }, [currAddress]);
 
   return {
     currAddress,
@@ -176,7 +191,7 @@ export const useWcWallet: UseWalletType = ({ network }) => {
 
 export function useWallet({
   address,
-}: { address?: string; network: "solana" }) {
+}: { address?: string; network?: "solana" }) {
   const [wallet, setWallet] = useState<IWallet | null>(null);
   const [network, setNetwork] = useState<"solana" | "evm">("solana");
   const tpWallet = useTpWallet({ network });
@@ -196,7 +211,7 @@ export function useWallet({
 
   return {
     wallet: {
-      ...wallet,
+      ...(wallet || {}),
       disconnect: async () => {
         setWallet(null);
         return wallet?.disconnect();

@@ -1,44 +1,66 @@
 import "dotenv/config";
 import { signMessage } from "@mcp/solana";
 import { VersionedTransaction } from "@solana/web3.js";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
+import { v4 as uuidv4 } from "uuid";
 import { describe, expect, test } from "vitest";
-import { createCaller } from "../src";
-import { appRouter } from "../src/index";
+import type { AppRouter } from "../src";
 import { solanaSdk } from "../src/provider/solana-sdk";
+import { decodeJwt } from "jose";
 
 // const keypair = await solanaSdk.generateKeypair();
 const keypair = solanaSdk.getKeypair(process.env.PRIVATE_KEY!);
 
-const caller = createCaller(appRouter);
 const SING_MESSAGE = "test";
 const SIGNED_MESSAGE_HEX = Buffer.from(
   signMessage(keypair.secretKey, SING_MESSAGE),
 ).toString("hex");
 
 describe.sequential("test wallet trpc", () => {
-  test("test sign message", async () => {
-    const data = await caller.getWallet({
-      network: "solana",
-    });
+  const uuid = uuidv4();
+  let token: string | null = null;
+  const client = createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: "http://localhost:3000/trpc",
+        headers() {
+          return {
+            authorization: `${token}`,
+          };
+        },
+      }),
+    ],
+  });
 
-    expect(data === undefined).toBe(true);
-
-    const initResult = await caller.initWallet({
-      network: "solana",
-      address: keypair.address,
-      message: SING_MESSAGE,
+  test.only("connect wallet", async () => {
+    const result = await client.connect.mutate({
+      uuid,
       signature: SIGNED_MESSAGE_HEX,
+      message: SING_MESSAGE,
+      wallet: {
+        address: keypair.publicKey.toBase58(),
+        network: "solana",
+        chainId: "1",
+      },
     });
 
-    expect(initResult === keypair.address).toBe(true);
+    console.log(result);
 
-    const afterInitWalletData = await caller.getWallet({
-      network: "solana",
-    });
+    token = await client.connect.mutate({ uuid });
+    console.log(token);
 
-    expect(afterInitWalletData?.address === keypair.address).toBe(true);
+    expect(token).toBeDefined();
 
-    const signResultId = await caller.addSignData({
+    const payload = await decodeJwt(token);
+    console.log(payload);
+
+    const currentWallet = await client.getWallet.query();
+    expect(currentWallet?.address).toBe(keypair.publicKey.toBase58());
+  });
+
+  test("test sign message", async () => {
+    const signResultId = await client.addSignData.mutate({
+      address: keypair.publicKey.toBase58(),
       network: "solana",
       type: "message",
       dataHex: Buffer.from(SING_MESSAGE).toString("hex"),
@@ -46,34 +68,25 @@ describe.sequential("test wallet trpc", () => {
 
     expect(signResultId).toBeDefined();
 
-    const querySign = await caller.getSignData({
-      id: signResultId,
+    const querySign = await client.getSignData.query({
+      id: signResultId!,
     });
 
     expect(querySign?.id === signResultId).toBe(true);
 
-    const submitSignedResult = await caller.submitSignedData({
-      id: signResultId,
+    await client.submitSignedData.mutate({
+      id: signResultId!,
       signedDataHex: SIGNED_MESSAGE_HEX,
     });
 
-    expect(submitSignedResult).toBeDefined();
-
-    const querySignedData = await caller.getSignData({
-      id: signResultId,
+    const querySignedData = await client.getSignData.query({
+      id: signResultId!,
     });
 
     expect(querySignedData?.signedDataHex === SIGNED_MESSAGE_HEX).toBe(true);
   });
 
-  test.only("test sign transaction", async () => {
-    const data = await caller.getWallet({
-      network: "solana",
-    });
-
-    expect(data === undefined).toBe(true);
-    const receiver = await solanaSdk.generateKeypair();
-
+  test("test sign transaction", async () => {
     const instruction = await solanaSdk.buildSendSolTransactionInstruction({
       from: keypair.publicKey.toBase58(),
       to: keypair.publicKey.toBase58(), // 自己转自己
@@ -89,7 +102,8 @@ describe.sequential("test wallet trpc", () => {
       feePayer: keypair.publicKey,
     });
 
-    const signResultId = await caller.addSignData({
+    const signResultId = await client.addSignData.mutate({
+      address: keypair.publicKey.toBase58(),
       network: "solana",
       type: "transaction",
       dataHex: Buffer.from(transaction.serialize()).toString("hex"),
@@ -97,8 +111,8 @@ describe.sequential("test wallet trpc", () => {
 
     expect(signResultId).toBeDefined();
 
-    const querySign = await caller.getSignData({
-      id: signResultId,
+    const querySign = await client.getSignData.query({
+      id: signResultId!,
     });
 
     expect(querySign?.dataHex).toBeDefined();
@@ -109,14 +123,14 @@ describe.sequential("test wallet trpc", () => {
 
     versionedTransaction.sign([keypair]);
 
-    await caller.submitSignedData({
-      id: signResultId,
+    await client.submitSignedData.mutate({
+      id: signResultId!,
       signedDataHex: Buffer.from(versionedTransaction.serialize()).toString(
         "hex",
       ),
     });
 
-    const querySignedData = await caller.getSignData({
+    const querySignedData = await client.getSignData.query({
       id: signResultId!,
     });
 

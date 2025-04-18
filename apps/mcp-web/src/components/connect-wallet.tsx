@@ -3,15 +3,27 @@ import { useWallet } from "@/hooks/use-wallet";
 import { Button } from "./ui/button";
 import { Wallet, ChevronDown, Loader2, Copy, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { isTpExtensionInstall } from "@/lib/utils";
+import { buildConnectMessage, isTpExtensionInstall } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./ui/collapsible";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+import { useMutation } from "@tanstack/react-query";
+import {
+  getConnectId,
+  getStorage,
+  getToken,
+  storageKeySchema,
+  useTokenState,
+} from "@/lib/storage";
+import { setStorage } from "@/lib/storage";
+import { useRouter } from "next/navigation";
+import { useAppContext } from "@/hooks/use-app-context";
 
 // Define props for WalletConnectionOptions component
 interface WalletConnectionOptionsProps {
@@ -211,28 +223,90 @@ function WalletInfo({ wallet, disconnect }: WalletInfoProps) {
   );
 }
 
-export function ConnectWallet() {
+export function ConnectWallet({
+  children,
+  defaultOpen,
+}: { children?: React.ReactNode; defaultOpen?: boolean }) {
+  const [token, setToken] = useTokenState();
+  const { setOpenConnectModal, openConnectModal } = useAppContext();
   const walletServices = useWallet({
     network: "solana",
   });
   const { wallet } = walletServices;
+  const router = useRouter();
+  const isDisconnectRef = useRef(false);
   const disconnect = async () => {
+    isDisconnectRef.current = true;
     await wallet?.disconnect();
-    setOpen(false);
+    setOpenConnectModal(false);
+    setToken(undefined);
+    setStorage(storageKeySchema.enum.wallet_type, "");
+    router.push("/explore");
   };
 
-  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
 
-  // Close dialog when wallet is connected
-  useEffect(() => {
-    if (wallet?.currAddress) {
+  const trpcUtils = trpc.useUtils();
+
+  const signMessage = async () => {
+    try {
+      setIsSigning(true);
+      if (!wallet?.currAddress) {
+        throw new Error("Wallet not initialized");
+      }
+      const message = await buildConnectMessage(wallet.currAddress);
+
+      const signature = await wallet?.signMessage?.(message);
+      if (!signature) {
+        throw new Error("Failed to sign message");
+      }
+
+      const result = await trpcUtils.client.signIn.mutate({
+        message,
+        signature,
+        uuid: getConnectId(),
+        wallet: {
+          address: wallet.currAddress,
+          network: "solana",
+          chainId: "1",
+        },
+      });
+
+      setToken(result);
+      setStorage(storageKeySchema.enum.wallet_type, wallet?.type || "");
+      setOpenConnectModal(false);
+      setIsSigning(false);
+
+      return result;
+    } catch (e) {
+      setIsSigning(false);
+      throw e;
+    }
+  };
+
+  const init = async () => {
+    try {
+      if (!wallet?.currAddress) return;
+      if (!getToken()) {
+        await signMessage();
+      }
+      setIsLoading(false);
+    } catch (e) {
+      console.error("Failed to init:", e);
       setIsLoading(false);
     }
-  }, [wallet?.currAddress]);
+  };
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  useEffect(() => {
+    if (!open || isDisconnectRef.current) return;
+    init();
+  }, [wallet?.currAddress, open]);
 
   const handleConnect = async () => {
-    setOpen(true);
+    isDisconnectRef.current = false;
+    setOpenConnectModal(true);
     return;
   };
 
@@ -285,18 +359,22 @@ export function ConnectWallet() {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="rounded-full"
-        onClick={handleConnect}
-      >
-        <Wallet className="h-4 w-4 mr-2" />
-        {wallet?.currAddress
-          ? `${wallet.currAddress.slice(0, 4)}...${wallet.currAddress.slice(-4)}`
-          : "Connect Wallet"}
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      {children && <div onClick={handleConnect}>{children}</div>}
+      {!children && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-full"
+          onClick={handleConnect}
+        >
+          <Wallet className="h-4 w-4 mr-2" />
+          {wallet?.currAddress
+            ? `${wallet.currAddress.slice(0, 4)}...${wallet.currAddress.slice(-4)}`
+            : "Connect Wallet"}
+        </Button>
+      )}
+
+      <Dialog open={openConnectModal} onOpenChange={setOpenConnectModal}>
         <DialogContent
           className="w-[400px]"
           onInteractOutside={(e) => {
@@ -309,7 +387,7 @@ export function ConnectWallet() {
             </DialogTitle>
           </DialogHeader>
 
-          {wallet?.currAddress ? (
+          {wallet?.currAddress && !isLoading && !isSigning ? (
             <WalletInfo
               wallet={{
                 currAddress: wallet.currAddress,
@@ -319,7 +397,7 @@ export function ConnectWallet() {
             />
           ) : (
             <WalletConnectionOptions
-              isLoading={isLoading}
+              isLoading={isLoading || isSigning}
               setIsLoading={setIsLoading}
               handleTpClick={handleTpClick}
               handleWalletConnectClick={handleWalletConnectClick}

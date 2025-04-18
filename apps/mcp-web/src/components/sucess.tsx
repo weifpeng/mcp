@@ -28,7 +28,7 @@ export default function SuccessAndClose({
   }, []);
 
   return (
-    <div className="min-h-screen bg-white sm:bg-gray-100">
+    <div className="min-h-screen bg-white  ">
       <div className="flex items-center justify-center min-h-screen px-6 py-8 sm:p-8">
         <div className="w-full max-w-md sm:bg-white sm:shadow-lg sm:rounded-2xl sm:p-8">
           <main className="flex flex-col gap-8 sm:gap-[32px] items-center">

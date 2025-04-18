@@ -1,16 +1,9 @@
-import { config } from "./config";
-import { createCaller, trpcExpressMiddleware } from "@mcp/trpc";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import express from "express";
-import { createProxyMiddleware } from "http-proxy-middleware";
 import open from "open";
 import { z } from "zod";
-import { poolAndWaitting } from "./lib";
-import path from "node:path";
-
-const caller = createCaller({});
-
+import { config } from "./config";
+import { getTrpcClient, poolAndWaitting } from "./lib";
 const BASE_URL = config.BASE_URL;
 
 // Create server instance
@@ -23,20 +16,10 @@ const server = new McpServer({
 });
 
 server.tool("connect-wallet", "Connect to the wallet", {}, async () => {
-  const wallet = await caller.getWallet({
-    network: "solana",
-  });
+  const client = await getTrpcClient();
+  const wallet = await client.getWallet.query();
 
   if (!wallet?.address) {
-    open(`${BASE_URL}/connect`);
-  }
-
-  const walletInfo = await poolAndWaitting(
-    () => caller.getWallet({ network: "solana" }),
-    60 * 10,
-  );
-
-  if (!walletInfo?.address) {
     return {
       content: [
         {
@@ -51,7 +34,7 @@ server.tool("connect-wallet", "Connect to the wallet", {}, async () => {
     content: [
       {
         type: "text",
-        text: walletInfo.address,
+        text: wallet.address,
       },
     ],
   };
@@ -59,7 +42,7 @@ server.tool("connect-wallet", "Connect to the wallet", {}, async () => {
 
 server.tool(
   "sign-message",
-  "Sign a message",
+  "Sign a message, we will send the message to the server and wait for user signed",
   {
     message: z.string().describe("The message to sign"),
     network: z.enum(["solana", "ethereum"]).describe("The network"),
@@ -67,23 +50,23 @@ server.tool(
     address: z.string().describe("The address"),
   },
   async ({ message, network, isHex, address }) => {
-    const id = await caller.addSignData({
+    const client = await getTrpcClient();
+
+    const id = await client.addSignData.mutate({
       dataHex: isHex ? message : Buffer.from(message, "utf-8").toString("hex"),
       type: "message",
       network,
       address,
     });
-
     open(`${BASE_URL}/sign?id=${id}`);
-
     const signData = await poolAndWaitting(async () => {
-      const data = await caller.getSignData({ id });
+      const data = await client.getSignData.query({ id: id! });
 
       if (data?.signedDataHex && data?.address) {
         return data;
       }
       return null;
-    }, 60 * 10);
+    }, 60 * 5);
 
     if (!signData?.signedDataHex || !signData.address) {
       return {
@@ -116,30 +99,32 @@ server.tool(
 
 server.tool(
   "sign-transaction",
-  "Sign and send a transaction",
+  "Sign and send a transaction, we will send the transaction hex to the server and wait for user signed",
+
   {
     transactionHex: z.string().describe("The transaction to sign"),
     network: z.enum(["solana", "ethereum"]).describe("The network"),
     address: z.string().describe("The address"),
   },
   async ({ transactionHex, network, address }) => {
-    const id = await caller.addSignData({
+    const client = await getTrpcClient();
+
+    const id = await client.addSignData.mutate({
       dataHex: transactionHex,
       type: "transaction",
       network,
       address,
     });
-
     open(`${BASE_URL}/sign?id=${id}`);
 
     const signData = await poolAndWaitting(async () => {
-      const data = await caller.getSignData({ id });
+      const data = await client.getSignData.query({ id: id! });
 
       if (data?.signedDataHex && data?.address) {
         return data;
       }
       return null;
-    }, 60 * 10);
+    }, 60 * 5);
 
     if (!signData?.signedDataHex || !signData.address) {
       return {
@@ -180,26 +165,6 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-
-  const app = express();
-
-  app.use("/trpc", trpcExpressMiddleware);
-
-  if (process.env.NODE_ENV === "development") {
-    app.use(
-      "/",
-      createProxyMiddleware({
-        target: "http://127.0.0.1:3000",
-        changeOrigin: true,
-      }),
-    );
-  } else {
-    app.use("/", express.static("../out"));
-  }
-
-  const url = new URL(BASE_URL);
-
-  app.listen(url.port);
   console.error("Solana Wallet MCP Server running on stdio");
 }
 

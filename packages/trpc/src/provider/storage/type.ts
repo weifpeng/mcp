@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const signDataSchema = z.object({
   id: z.string(),
-  address: z.string().nullish(),
+  address: z.string(),
   dataHex: z.string(),
   signedDataHex: z.string().nullish(),
   type: z.enum(["transaction", "message"]),

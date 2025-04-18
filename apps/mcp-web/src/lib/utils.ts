@@ -26,3 +26,20 @@ export async function buildConnectMessage(account: string) {
 
   return JSON.stringify(message);
 }
+
+export function tryDecodeHex(hex: string): string | null {
+  try {
+    const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
+    const bytes = new Uint8Array(
+      cleanHex.match(/.{1,2}/g)?.map((byte) => Number.parseInt(byte, 16)) || [],
+    );
+    const decoded = new TextDecoder().decode(bytes);
+    const printableChars = decoded.replace(/[^\x20-\x7E]/g, "");
+    if (printableChars.length > decoded.length * 0.7) {
+      return decoded;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}

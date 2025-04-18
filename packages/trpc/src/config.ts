@@ -1,12 +1,17 @@
 import { z } from "zod";
 
 export const ConfigSchema = z.object({
-    rpcUrl: z.string(),
-    dataFilePath: z.string().nullish()
+  rpcUrl: z.string(),
+  redisUrl: z.string(),
+  redisToken: z.string(),
+  jwtSecret: z.string(),
+  databaseUrl: z.string(),
 });
 
 export const config = ConfigSchema.parse({
-    rpcUrl: process.env.RPC_URL,
-    dataFilePath: process.env.DATA_FILE_PATH
-})
-
+  rpcUrl: process.env.RPC_URL,
+  redisUrl: process.env.UPSTASH_REDIS_URL,
+  redisToken: process.env.UPSTASH_REDIS_TOKEN,
+  jwtSecret: process.env.JWT_SECRET,
+  databaseUrl: process.env.DATABASE_URL,
+});

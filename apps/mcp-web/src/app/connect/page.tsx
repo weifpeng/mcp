@@ -1,273 +1,548 @@
 "use client";
-import SuccessAndClose from "@/components/sucess";
+import { ConnectWallet } from "@/components/connect-wallet";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWallet } from "@/hooks/use-wallet";
-import { getStorage, setStorage, storageKeySchema } from "@/lib/storage";
+import {
+  setConnectId,
+  getConnectId,
+  useTokenState,
+  clearAll,
+} from "@/lib/storage";
 import { trpc } from "@/lib/trpc";
-import { buildConnectMessage, isTpExtensionInstall } from "@/lib/utils";
-import { useMutation } from "@tanstack/react-query";
-import { ChevronDown, Loader2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-
-export default function Connect() {
-  const { wallet, connect } = useWallet({
-    network: "solana",
-  });
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [walletConnect, setWalletConnect] = useState<boolean>(false);
-
-  const { localMsg, walletType } = useMemo(() => {
-    const msg = getStorage(storageKeySchema.enum.connect_message);
-    const walletType = getStorage(storageKeySchema.enum.wallet_type);
-    if (!msg) {
-      return {
-        localMsg: null,
-        walletType: walletType ?? null,
-      };
-    }
-    return {
-      localMsg: JSON.parse(msg),
-      walletType: walletType ?? null,
-    };
-  }, []);
-
-  const {
-    data: isInitSolanaWallet,
-    isLoading,
-    refetch,
-  } = trpc.getWallet.useQuery({
-    network: "solana",
-  });
-
-  const trpcUtils = trpc.useUtils();
-
-  const { mutate: signMessage, isPending: isSigning } = useMutation({
-    mutationKey: ["signMessage", wallet?.currAddress],
-    mutationFn: async () => {
-      if (!wallet?.currAddress) {
-        throw new Error("Wallet not initialized");
-      }
-      const message = await buildConnectMessage(wallet.currAddress);
-
-      const signature = await wallet?.signMessage(message);
-      if (!signature) {
-        throw new Error("Failed to sign message");
-      }
-
-      const data = {
-        network: "solana" as const,
-        address: wallet.currAddress,
-        signature,
-        message,
-      };
-
-      const result = await trpcUtils.client.initWallet.mutate(data);
-
-      setStorage(storageKeySchema.enum.connect_message, JSON.stringify(data));
-
-      setStorage(storageKeySchema.enum.wallet_type, wallet.type);
-
-      await refetch();
-      return result;
+import {
+  Copy,
+  ExternalLink,
+  FileSignature,
+  Inbox,
+  Loader2,
+  PenSquare,
+  WalletIcon,
+} from "lucide-react";
+import { Suspense, use, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { cn, tryDecodeHex } from "@/lib/utils";
+import { useAppContext } from "@/hooks/use-app-context";
+function Connect(params: { connectId: string; tab?: string }) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [clientModalOpen, setClientModalOpen] = useState(false);
+  const [selectedSignData, setSelectedSignData] = useState<string | null>(null);
+  const { setOpenConnectModal } = useAppContext();
+  const { wallet } = useWallet({});
+  const [token, setToken] = useTokenState();
+  const { data: signDataList } = trpc.getSignDataList.useQuery(
+    { isSigned: false },
+    {
+      refetchInterval: 3000,
     },
+  );
+
+  const { data: signedDataList, refetch } = trpc.getSignDataList.useQuery({
+    isSigned: true,
   });
 
-  useEffect(() => {
-    console.log("wallet", wallet);
-    if (!wallet?.isConnected() || !wallet?.currAddress || !walletConnect) {
-      return;
-    }
-    signMessage();
-  }, [wallet?.isConnected, wallet?.currAddress, signMessage, walletConnect]);
+  const submitSignedDataMutation = trpc.submitSignedData.useMutation();
 
-  useEffect(() => {
-    const init = async () => {
-      console.log(localMsg, walletType);
-      if (localMsg) {
-        await trpcUtils.client.initWallet.mutate(localMsg);
-        await refetch();
-      }
-      if (walletType === "tp") {
-        await connect("tp");
-        setWalletConnect(true);
-      }
-    };
-    init();
-  }, [localMsg, walletType, trpcUtils.client.initWallet.mutate, refetch]);
-
-  const handleTpClick = async () => {
-    if (!isTpExtensionInstall()) {
-      globalThis.open("https://extension.tokenpocket.pro/#/", "_blank");
-      return;
-    }
-
-    if (!window.tokenpocket?.solana) {
-      return;
-    }
-
-    await connect("tp");
-
-    setWalletConnect(true);
+  const handleConnect = () => {
+    setIsConnecting(true);
+    setOpenConnectModal(true);
   };
 
-  const handleWalletConnectClick = async () => {
-    if (wallet?.isConnected() && wallet?.type === "wc") {
-      await signMessage();
-      return;
+  const handleCopyAddress = () => {
+    if (wallet.currAddress) {
+      navigator.clipboard.writeText(wallet.currAddress);
+      toast.success("Wallet address copied to clipboard");
     }
-
-    await connect("wc");
-    setWalletConnect(true);
   };
 
-  if (isLoading || wallet?.pending) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-10 h-10 animate-spin" />
-      </div>
-    );
-  }
+  const handleSignData = async (id: string, dataHex: string) => {
+    try {
+      setSelectedSignData(id);
+      const signedDataHex = await wallet.signMessage?.(dataHex);
 
-  if (isInitSolanaWallet) {
-    if (showSuccess) {
-      return (
-        <SuccessAndClose
-          title="Wallet Connected"
-          description={`Your wallet (${isInitSolanaWallet.address.slice(0, 6)}...${isInitSolanaWallet.address.slice(-4)}) is successfully connected to ${isInitSolanaWallet.network.toUpperCase()}`}
-        />
-      );
+      if (signedDataHex) {
+        await submitSignedDataMutation.mutate({
+          id,
+          signedDataHex,
+        });
+        toast.success("Transaction signed successfully");
+      } else {
+        toast.error("Failed to sign transaction");
+      }
+    } catch (error) {
+      console.error("Error signing data:", error);
+      toast.error("Error signing data");
+    } finally {
+      setSelectedSignData(null);
     }
+  };
 
-    return (
-      <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-4">Wallet Connected</h1>
-            <div className="flex items-center justify-center mb-2">
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                {isInitSolanaWallet.network.toUpperCase()}
-              </span>
-            </div>
-          </div>
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  useEffect(() => {
+    if (wallet.isConnected?.() && wallet.currAddress && token) {
+      setIsConnecting(false);
+      setIsConnected(true);
+      console.log("connected");
+    } else {
+      setIsConnected(false);
+    }
+  }, [wallet.isConnected?.(), wallet.currAddress, token]);
 
-          <div className="space-y-6">
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <div className="text-sm text-gray-500">Connected Address</div>
-                <div className="font-mono text-sm break-all">
-                  {isInitSolanaWallet.address}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  // Reset wallet connection
-                  setStorage(storageKeySchema.enum.connect_message, "");
-                  refetch();
-                }}
-              >
-                Switch Wallet
-              </Button>
-
-              <Button
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-                onClick={() => {
-                  setShowSuccess(true);
-                }}
-              >
-                Confirm
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-8 text-center text-sm text-gray-500">
-            Your wallet is now connected to the application
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (params.connectId && params.connectId !== getConnectId()) {
+      clearAll();
+      setConnectId(params.connectId);
+    }
+  }, [params.connectId]);
 
   return (
-    <div className="min-h-screen bg-neutral-100 flex items-center justify-center p-4">
-      {isSigning && (
-        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/50">
-          <Loader2 className="w-10 h-10 animate-spin" />
-        </div>
-      )}
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
-          <p className="text-gray-600 mb-2">
-            Your secure crypto wallet to explore blockchain
-          </p>
-          <p className="text-sm text-gray-500">
-            Easy and safe to buy, store, send, swap tokens and collect NFTs
-          </p>
+    <>
+      <div
+        className={cn(
+          "flex flex-col p-6   h-[calc(100vh-68px)]",
+          !isConnected ? "hidden" : "",
+        )}
+      >
+        <div className="mb-6 border-b pb-6">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-50 rounded-full mr-4">
+              <WalletIcon className="h-6 w-6 text-blue-500" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">
+                Wallet Successfully Connected
+              </h1>
+              <p className="text-gray-600">
+                Your wallet is now connected. You can sign transactions below.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-6 ">
-          <div className="w-full flex justify-center">
-            <Button
-              className=" flex items-center justify-center space-x-3  py-2 h-fit  text-lg bg-blue-600 hover:bg-blue-700 transition-colors cursor-pointer"
-              onClick={handleTpClick}
+        <div className="bg-gray-50 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-gray-500">Connected Address</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCopyAddress}
+                className="p-1 hover:bg-gray-200 rounded-md transition-colors"
+                aria-label="Copy address"
+                type="button"
+              >
+                <Copy className="h-4 w-4 text-gray-500" />
+              </button>
+              <a
+                href={`https://solscan.io/account/${wallet.currAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 hover:bg-gray-200 rounded-md transition-colors"
+                aria-label="View on explorer"
+              >
+                <ExternalLink className="h-4 w-4 text-gray-500" />
+              </a>
+            </div>
+          </div>
+          <div className="font-mono text-sm bg-white p-3 rounded border border-gray-200 break-all">
+            {wallet.currAddress}
+          </div>
+        </div>
+
+        <Tabs defaultValue={params.tab || "inbox"} className="w-full">
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="inbox" className="flex items-center gap-2">
+              <Inbox className="h-4 w-4" />
+              Signature Inbox
+              {signDataList && signDataList.length > 0 && (
+                <Badge variant="default" className="ml-1 text-white">
+                  {signDataList.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="flex items-center gap-2"
+              onClick={() => refetch()}
             >
-              <div className="flex flex-col items-center  justify-center">
-                <img
-                  src="/tp-logo.png"
-                  alt="TokenPocket"
-                  className=" w-[160] h-[90px] object-cover "
-                />
-                <span className="text-xs text-blue-100">Recommended</span>
+              <FileSignature className="h-4 w-4" />
+              History
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="inbox" className="space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-gray-500">
+                Refreshes automatically every 3 seconds
+              </p>
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Live</span>
               </div>
+            </div>
+
+            {!signDataList || signDataList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 border border-dashed rounded-lg bg-gray-50">
+                <Inbox className="h-12 w-12 text-gray-300 mb-3" />
+                <p className="text-gray-500">No pending signatures</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {signDataList.map((signData) => (
+                  <div
+                    key={signData.id}
+                    className="bg-white border rounded-lg shadow-sm overflow-hidden"
+                  >
+                    <div className="p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-blue-50 rounded-full">
+                          <PenSquare className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <h3 className="font-medium">Signature Request</h3>
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center gap-2 mb-3 p-2 ">
+                        <span className="text-xs text-gray-500">Address:</span>
+                        <span className="font-mono text-xs truncate flex-1">
+                          {signData.address}
+                        </span>
+                        <button
+                          onClick={() =>
+                            navigator.clipboard.writeText(signData.address)
+                          }
+                          className="p-1 hover:bg-gray-100 rounded"
+                          type="button"
+                          aria-label="Copy address"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
+                        {signData.type && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">Type</span>
+                            <span className="font-medium">{signData.type}</span>
+                          </div>
+                        )}
+                        {signData.network && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">Network</span>
+                            <span className="font-medium">
+                              {signData.network}
+                            </span>
+                          </div>
+                        )}
+                        {signData.createdAt && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">Created</span>
+                            <span className="font-medium">
+                              {new Date(signData.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border rounded-md mb-4 overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
+                          <span className="font-medium text-xs">
+                            Content to Sign
+                          </span>
+                          <button
+                            onClick={() =>
+                              navigator.clipboard.writeText(signData.dataHex)
+                            }
+                            className="p-1 hover:bg-gray-200 rounded text-gray-500"
+                            type="button"
+                            aria-label="Copy data"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        {/* Try to decode and display if it might be a message */}
+                        {tryDecodeHex(signData.dataHex) ? (
+                          <div className="p-3">
+                            <div className="text-sm font-medium break-words">
+                              {tryDecodeHex(signData.dataHex)}
+                            </div>
+                            <div
+                              onClick={() =>
+                                navigator.clipboard.writeText(signData.dataHex)
+                              }
+                              className="text-xs text-gray-500 mt-2 cursor-pointer hover:underline flex items-center gap-1"
+                            >
+                              <span>Show raw hex</span>
+                              <Copy className="h-3 w-3" />
+                            </div>
+                          </div>
+                        ) : (
+                          /* Display raw hex if can't decode */
+                          <div className="p-3 bg-gray-50">
+                            <div className="font-mono text-xs break-all max-h-16 overflow-auto">
+                              {signData.dataHex}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className=" flex justify-end">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() =>
+                            handleSignData(signData.id, signData.dataHex)
+                          }
+                          disabled={
+                            selectedSignData === signData.id ||
+                            submitSignedDataMutation.isPending
+                          }
+                        >
+                          {selectedSignData === signData.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Signing...
+                            </>
+                          ) : (
+                            <>
+                              <PenSquare className="h-4 w-4 mr-2" />
+                              Sign Request
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="history">
+            {!signedDataList || signedDataList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 border border-dashed rounded-lg bg-gray-50">
+                <FileSignature className="h-12 w-12 text-gray-300 mb-3" />
+                <p className="text-gray-500">No signed transactions yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {signedDataList.map((signData) => (
+                  <div
+                    key={signData.id}
+                    className="bg-white border rounded-lg shadow-sm overflow-hidden"
+                  >
+                    <div className="p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-green-50 rounded-full">
+                          <FileSignature className="h-4 w-4 text-green-500" />
+                        </div>
+                        <h3 className="font-medium">
+                          Signed {signData.type.toUpperCase()}
+                        </h3>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="bg-green-50 text-green-700 border-green-200"
+                      >
+                        Signed
+                      </Badge>
+                    </div>
+
+                    <div className="px-4 pb-4">
+                      <div className="flex items-center gap-2 mb-3 p-2">
+                        <span className="text-xs text-gray-500">Address:</span>
+                        <span className="font-mono text-xs truncate flex-1">
+                          {signData.address}
+                        </span>
+                        <button
+                          onClick={() =>
+                            navigator.clipboard.writeText(signData.address)
+                          }
+                          className="p-1 hover:bg-gray-100 rounded"
+                          type="button"
+                          aria-label="Copy address"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 mb-4 text-xs">
+                        {signData.type && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">Type</span>
+                            <span className="font-medium">{signData.type}</span>
+                          </div>
+                        )}
+                        {signData.network && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">Network</span>
+                            <span className="font-medium">
+                              {signData.network}
+                            </span>
+                          </div>
+                        )}
+                        {signData.createdAt && (
+                          <div className="bg-gray-50 p-2 rounded-md">
+                            <span className="text-gray-500 block">
+                              Signed at
+                            </span>
+                            <span className="font-medium">
+                              {new Date(signData.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border rounded-md mb-4 overflow-hidden">
+                        <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
+                          <span className="font-medium text-xs">
+                            {tryDecodeHex(signData.dataHex)
+                              ? "Message Content"
+                              : "Transaction Data"}
+                          </span>
+                          <button
+                            onClick={() =>
+                              navigator.clipboard.writeText(signData.dataHex)
+                            }
+                            className="p-1 hover:bg-gray-200 rounded text-gray-500"
+                            type="button"
+                            aria-label="Copy data"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        {tryDecodeHex(signData.dataHex) ? (
+                          <div className="p-3">
+                            <div className="text-sm break-words">
+                              {tryDecodeHex(signData.dataHex)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-gray-50">
+                            <div className="font-mono text-xs break-all max-h-16 overflow-auto">
+                              {signData.dataHex}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {signData.signedDataHex && (
+                        <div className="border rounded-md mb-4 overflow-hidden">
+                          <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
+                            <span className="font-medium text-xs">
+                              Signed {signData.type.toUpperCase()} Hex
+                            </span>
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(
+                                  signData.signedDataHex!,
+                                )
+                              }
+                              className="p-1 hover:bg-gray-200 rounded text-gray-500"
+                              type="button"
+                              aria-label="Copy signed data"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="p-3 bg-gray-50">
+                            <div className="font-mono text-xs break-all max-h-16 overflow-auto">
+                              {signData.signedDataHex}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <Dialog open={clientModalOpen} onOpenChange={setClientModalOpen}>
+          <DialogContent className="w-96">
+            <DialogTitle>Continue to Client</DialogTitle>
+            <DialogDescription>
+              You can continue in the client application while waiting. The
+              request will be sent to your wallet automatically.
+            </DialogDescription>
+            <Button
+              variant="default"
+              className="w-full"
+              onClick={() => {
+                setClientModalOpen(false);
+              }}
+            >
+              Confirm
             </Button>
-          </div>
-
-          <div className="border-t border-gray-200 pt-4">
-            <Collapsible className="w-full">
-              <CollapsibleTrigger className="w-full flex items-center justify-center text-gray-600 hover:text-gray-800">
-                <span className="text-sm cursor-pointer">More Options</span>
-                <ChevronDown className="h-4 w-4 ml-1" />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <Button
-                  className="w-full h-12 mt-4 flex items-center justify-center space-x-2   text-gray-700 cursor-pointer"
-                  variant="outline"
-                  onClick={handleWalletConnectClick}
-                >
-                  <span>WalletConnect</span>
-                </Button>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </div>
-
-        <div className="mt-8 grid grid-cols-3 gap-4 text-center text-sm">
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <div className="font-semibold text-blue-600">Security</div>
-            <p className="text-gray-600 text-xs mt-1">
-              Full control of your assets
-            </p>
-          </div>
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <div className="font-semibold text-blue-600">30M+</div>
-            <p className="text-gray-600 text-xs mt-1">Global users</p>
-          </div>
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <div className="font-semibold text-blue-600">Multi-chain</div>
-            <p className="text-gray-600 text-xs mt-1">Support major networks</p>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       </div>
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center p-6 max-w-lg mx-auto text-center h-[calc(100vh-68px)]",
+          isConnected ? "hidden" : "",
+        )}
+      >
+        <h1 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2">
+          <WalletIcon className="h-6 w-6" />
+          Connect Wallet
+        </h1>
+
+        <p className="text-gray-600 mb-8">
+          Connect your wallet to access and use our tools. A secure wallet
+          connection is required to interact with blockchain features.
+        </p>
+        <Button
+          size="lg"
+          className="w-full max-w-xs"
+          onClick={handleConnect}
+          disabled={isConnecting}
+        >
+          {isConnecting ? (
+            <>
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+              Connecting wallet...
+            </>
+          ) : (
+            <>
+              <WalletIcon className="h-5 w-5 mr-2" />
+              Connect Wallet
+            </>
+          )}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function ConnectLoading() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <Loader2 className="w-10 h-10 animate-spin" />
     </div>
+  );
+}
+
+export default function ConnectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connectId: string; tab?: string }>;
+}) {
+  const { connectId, tab } = use(searchParams);
+
+  return (
+    <Suspense fallback={<ConnectLoading />}>
+      <Connect connectId={connectId} tab={tab} />
+    </Suspense>
   );
 }
