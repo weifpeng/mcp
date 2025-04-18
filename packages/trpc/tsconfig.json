@@ -5,7 +5,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@mcp/solana": ["./../../packages/solana/src/index.ts"]
+      "@tokenpocket/solana": ["./../../packages/solana/src/index.ts"]
     }
   }
 }

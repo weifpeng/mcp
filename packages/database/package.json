@@ -1,5 +1,5 @@
 {
-  "name": "@mcp/database",
+  "name": "@tokenpocket/database",
   "version": "1.0.0",
   "description": "",
   "main": "./src/db/index.ts",

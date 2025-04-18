@@ -7,39 +7,11 @@
         "^build"
       ],
       "env": [
-        "RPC_URL"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**"
-      ]
-    },
-    "wallet-mcp:build": {
-      "dependsOn": [
-        "@tokenpocket/wallet-mcp#build",
-        "@mcp/trpc#build",
-        "@mcp/solana#build"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**"
-      ]
-    },
-    "solana-mcp:build": {
-      "dependsOn": [
-        "@tokenpocket/solana-mcp#build",
-        "@mcp/trpc#build",
-        "@mcp/solana#build"
+        "RPC_URL",
+        "UPSTASH_REDIS_URL",
+        "UPSTASH_REDIS_TOKEN",
+        "JWT_SECRET",
+        "DATABASE_URL"
       ],
       "inputs": [
         "$TURBO_DEFAULT$",

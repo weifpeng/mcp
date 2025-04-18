@@ -1,4 +1,4 @@
-import type { AppRouter } from "@mcp/trpc";
+import type { AppRouter } from "@tokenpocket/trpc";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import type { TRPCClient } from "@trpc/client";
 import { config } from "./config";

@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { signMessage } from "@mcp/solana";
+import { signMessage } from "@tokenpocket/solana";
 import { VersionedTransaction } from "@solana/web3.js";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { v4 as uuidv4 } from "uuid";

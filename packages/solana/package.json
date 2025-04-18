@@ -1,14 +1,10 @@
 {
-  "name": "@mcp/solana",
+  "name": "@tokenpocket/solana",
   "version": "1.0.0",
   "description": "",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./src/index.ts",
-  "scripts": {
-    "build": "pkgroll"
-  },
+  "main": "./src/index.ts",
   "keywords": [],
   "author": "",
   "license": "ISC",

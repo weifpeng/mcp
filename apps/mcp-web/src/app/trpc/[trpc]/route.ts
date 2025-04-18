@@ -1,5 +1,5 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter, createContext } from "@mcp/trpc";
+import { appRouter, createContext } from "@tokenpocket/trpc";
 import type { NextRequest } from "next/server";
 
 function handler(req: Request) {

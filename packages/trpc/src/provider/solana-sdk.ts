@@ -1,4 +1,4 @@
-import { SolanaSDK } from "@mcp/solana";
+import { SolanaSDK } from "@tokenpocket/solana";
 import { config } from "../config";
 
 export const solanaSdk = new SolanaSDK({ rpcUrl: config.rpcUrl });

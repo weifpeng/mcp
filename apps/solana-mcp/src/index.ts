@@ -2,7 +2,7 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { SolanaSDK } from "@mcp/solana";
+import { SolanaSDK } from "@tokenpocket/solana";
 import { PublicKey } from "@solana/web3.js";
 import { Decimal } from "decimal.js";
 

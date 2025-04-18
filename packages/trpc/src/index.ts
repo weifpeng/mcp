@@ -1,4 +1,4 @@
-import { verifySignature } from "@mcp/solana";
+import { verifySignature } from "@tokenpocket/solana";
 import * as trpcExpress from "@trpc/server/adapters/express";
 import type { RequestHandler } from "express";
 import { z } from "zod";
@@ -16,7 +16,7 @@ import {
   signDataInsertSchema,
   signDataSelectSchema,
   signDataTable,
-} from "@mcp/database/src/db/schema";
+} from "@tokenpocket/database/src/db/schema";
 import { jwtVerify, SignJWT } from "jose";
 import { config } from "./config";
 import { redisStorage, walletSchema } from "./provider/storage/redis";

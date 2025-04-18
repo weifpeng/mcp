@@ -20,8 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@mcp/trpc": ["./../../packages/trpc/src/index.ts"],
-      "@mcp/solana": ["./../../packages/solana/src/index.ts"]
+      "@tokenpocket/trpc": ["./../../packages/trpc/src/index.ts"],
+      "@tokenpocket/solana": ["./../../packages/solana/src/index.ts"]
     }
   },
   "include": [
