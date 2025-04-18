@@ -1,6 +1,6 @@
-# TokenPocket MCP
+# TokenPocket MCP Monorepo
 
-![1744962147941](image/README/1744962147941.png)
+![1744964422525](image/README/1744964422525.png)
 
 ## APP
 
@@ -8,9 +8,14 @@
 
 TokenPocket MCP 的 DApp，wallet mcp 调用这个 Dapp 完成签名和获取用户钱包地址的功能。
 
+DApp 未来还会支持
+
+1. 在 web 上作为一个 AI Client 调用 MCP
+2. MCP 市场
+
 ### wallet-mcp
 
-链接 DApp ，支持用户在 AI Client 
+链接 DApp ，支持用户在 AI Client
 
 1. 查询自己的 address
 2. 签名交易和消息
@@ -22,7 +27,6 @@ TokenPocket MCP 的 DApp，wallet mcp 调用这个 Dapp 完成签名和获取用
 #### signature
 
 ![1744964114000](image/README/1744964114000.png)
-
 
 ### solana-instruction-mcp
 
