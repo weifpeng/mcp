@@ -188,7 +188,7 @@ importers:
         specifier: ^5
         version: 5.8.2
 
-  apps/solana-mcp:
+  apps/solana-instruction-mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.9.0
