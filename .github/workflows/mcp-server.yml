@@ -1,14 +1,11 @@
 name: Publish wallet-mcp
 
+
 on:
   push:
-    branches:
-      - master
-    paths:
-      - 'apps/wallet-mcp/**'
-  tags:
-    - 'wallet-mcp@*'
-  workflow_dispatch:
+    branches: ["develop"]
+    tags:
+      - "wallet-mcp@*"
 
 jobs:
   build-and-publish:
