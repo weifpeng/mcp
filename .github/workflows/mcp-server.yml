@@ -60,6 +60,6 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: cd apps/wallet-mcp && pnpm publish --no-git-checks --access ${{ steps.access.outputs.ACCESS_LEVEL }}
+        run: cd apps/wallet-mcp && pnpm publish --no-git-checks 
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
