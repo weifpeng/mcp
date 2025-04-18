@@ -1,8 +1,8 @@
 # TokenPocket MCP Monorepo
 
-![1744964422525](image/README/1744964422525.png)
-
 # Architecture
+
+![1744964422525](image/README/1744964422525.png)
 
 ## APP
 
@@ -42,7 +42,7 @@ DApp 未来还会支持
 
 ### database
 
-drizzle orm 
+drizzle orm
 
 ### solana
 
