@@ -2,6 +2,8 @@
 
 ![1744964422525](image/README/1744964422525.png)
 
+# Architecture
+
 ## APP
 
 ### mcp-web
@@ -35,3 +37,29 @@ DApp 未来还会支持
 1. 构建发送 sol 的交易
 
 ## Package
+
+一些在 APP 共用的库和抽象定义。
+
+### database
+
+drizzle orm 
+
+### solana
+
+操作 solana 的 sdk
+
+### trpc
+
+DApp 的 API 实现，基于 tRPC
+
+## Script
+
+构建/部署的脚本
+
+# Deployment
+
+打 tag 发布生产制品
+
+`wallet-mcp@x.x.x`：发布 wallet-mcp 到 npm
+
+`solana-instruction-mcp@x.x.x`：发布 solana-instruction-mcp 到 npm
