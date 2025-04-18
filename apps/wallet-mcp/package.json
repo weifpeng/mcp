@@ -5,10 +5,16 @@
   "main": "./dist/index.js",
   "type": "module",
   "bin": {
-    "wallet-mcp": "dist/index.cjs"
+    "wallet-mcp": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts  "
+    "build": "tsup --config tsup.config.ts  ",
+    "publish": "pnpm publish --no-git-checks --access public"
   },
   "keywords": [],
   "author": "",
