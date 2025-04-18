@@ -1,8 +1,8 @@
-name: Publish wallet-mcp
+name: Publish solana-instruction-mcp
 on:
   push:
     tags:
-      - "wallet-mcp@*"
+      - "solana-instruction-mcp@*"
 
 jobs:
   build-and-publish:
@@ -30,24 +30,23 @@ jobs:
         id: extract_version
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG_NAME#wallet-mcp@}
+          VERSION=${TAG_NAME#solana-instruction-mcp@}
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Update version in package.json
         if: startsWith(github.ref, 'refs/tags/')
         run: |
-          cd apps/wallet-mcp
+          cd apps/solana-instruction-mcp
           npm version ${{ steps.extract_version.outputs.VERSION }} --no-git-tag-version
 
       - name: Build package
-        run: pnpm turbo run build --filter=wallet-mcp
+        run: pnpm turbo run build --filter=solana-instruction-mcp
 
       - name: Remove workspace dependencies
         run: |
-          cd apps/wallet-mcp
-          sed -i 's/"workspace:\^"/""/g' package.json
+          pnpm tsx ./script/clear-package-file.ts apps/solana-instruction-mcp/package.json
 
       - name: Publish to npm
-        run: cd apps/wallet-mcp && pnpm publish --no-git-checks --access public
+        run: cd apps/solana-instruction-mcp && pnpm publish --no-git-checks --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
