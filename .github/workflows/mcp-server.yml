@@ -1,9 +1,6 @@
 name: Publish wallet-mcp
-
-
 on:
   push:
-    branches: ["develop"]
     tags:
       - "wallet-mcp@*"
 
@@ -43,21 +40,12 @@ jobs:
           npm version ${{ steps.extract_version.outputs.VERSION }} --no-git-tag-version
 
       - name: Build package
-        run: pnpm turbo run build --filter=@tokenpocket/wallet-mcp
+        run: pnpm turbo run build --filter=wallet-mcp
 
       - name: Remove workspace dependencies
         run: |
           cd apps/wallet-mcp
           sed -i 's/"workspace:\^"/""/g' package.json
-
-      - name: Set access level
-        id: access
-        run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            echo "ACCESS_LEVEL=public" >> $GITHUB_OUTPUT
-          else
-            echo "ACCESS_LEVEL=restricted" >> $GITHUB_OUTPUT
-          fi
 
       - name: Publish to npm
         run: cd apps/wallet-mcp && pnpm publish --no-git-checks --access public

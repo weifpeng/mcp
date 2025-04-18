@@ -1,7 +1,7 @@
 {
-  "name": "@tokenpocket/wallet-mcp",
-  "version": "1.0.0",
-  "description": "",
+  "name": "wallet-mcp",
+  "version": "1.0.1",
+  "description": "MCP Server",
   "main": "./dist/index.js",
   "type": "module",
   "bin": {

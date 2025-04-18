@@ -6,8 +6,17 @@ import { SolanaSDK } from "@tokenpocket/solana";
 import { PublicKey } from "@solana/web3.js";
 import { Decimal } from "decimal.js";
 
+const configSchema = z.object({
+  rpcUrl: z
+    .string()
+    .describe("the solana rpc url")
+    .default("https://api.devnet.solana.com"),
+});
+
+const config = configSchema.parse(process.env);
+
 const solana = new SolanaSDK({
-  rpcUrl: process.env.RPC_URL!,
+  rpcUrl: config.rpcUrl,
 });
 
 // Create server instance
