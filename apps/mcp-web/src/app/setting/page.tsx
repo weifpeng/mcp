@@ -129,7 +129,7 @@ export default function Setting() {
             </div>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="advanced-options">
-                <AccordionTrigger className="py-2">高级选项</AccordionTrigger>
+                <AccordionTrigger className="py-2">Advanced Options</AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2">
                     <Label htmlFor="anthropic-api-url">API URL</Label>
