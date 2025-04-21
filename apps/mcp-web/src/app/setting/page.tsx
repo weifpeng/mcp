@@ -18,52 +18,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getSetting, setSetting } from "@/lib/storage";
 import { toast } from "sonner";
-
+import { useSettingState } from "@/lib/storage";
 export default function Setting() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [setting, setSetting] = useSettingState();
   const [anthropicApiKey, setAnthropicApiKey] = useState("");
   const [anthropicApiUrl, setAnthropicApiUrl] = useState(
     "https://api.anthropic.com",
   );
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Load existing settings on component mount
   useEffect(() => {
-    const loadSettings = async () => {
-      setIsLoading(true);
-      try {
-        const savedSettings = getSetting();
-        if (savedSettings?.model) {
-          const anthropicModel = savedSettings.model.find(
-            (m) => m.type === "anthropic",
-          );
-          if (anthropicModel) {
-            setAnthropicApiKey(anthropicModel.apiKey);
-            setAnthropicApiUrl(anthropicModel.apiUrl);
-            toast.success("Settings loaded successfully");
-          }
-        }
-      } catch (error) {
-        // More specific error handling
-        if (error instanceof SyntaxError) {
-          console.error("Invalid JSON in stored settings", error);
-        } else if (error instanceof Error) {
-          console.error(`Error loading settings: ${error.message}`);
-        } else {
-          console.error("Unknown error loading settings", error);
-        }
-        // Only show error toast if it's not just that settings don't exist yet
-        if (error instanceof Error && !error.message.includes("Invalid")) {
-          toast.error("Failed to load settings");
-        }
-      } finally {
-        setIsLoading(false);
+    if (setting) {
+      const anthropic = setting.model?.find(
+        (model) => model.type === "anthropic",
+      );
+      if (anthropic) {
+        setAnthropicApiKey(anthropic.apiKey || "");
+        setAnthropicApiUrl(anthropic.apiUrl || "");
       }
-    };
-
-    loadSettings();
-  }, []);
+    }
+  }, [setting]);
 
   const saveModelConfiguration = () => {
     try {
@@ -129,7 +104,9 @@ export default function Setting() {
             </div>
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="advanced-options">
-                <AccordionTrigger className="py-2">Advanced Options</AccordionTrigger>
+                <AccordionTrigger className="py-2">
+                  Advanced Options
+                </AccordionTrigger>
                 <AccordionContent>
                   <div className="space-y-2">
                     <Label htmlFor="anthropic-api-url">API URL</Label>
@@ -144,10 +121,7 @@ export default function Setting() {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
-            <Button 
-              onClick={saveModelConfiguration} 
-              disabled={isLoading}
-            >
+            <Button onClick={saveModelConfiguration} disabled={isLoading}>
               Save API Configuration
             </Button>
           </CardContent>

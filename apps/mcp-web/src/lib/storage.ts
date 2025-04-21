@@ -31,15 +31,6 @@ const settingSchema = z.object({
   ),
 });
 
-export const getSetting = () => {
-  const setting = getStorage("setting");
-  return settingSchema.parse(JSON.parse(setting || "{}"));
-};
-
-export const setSetting = (setting: z.infer<typeof settingSchema>) => {
-  setStorage("setting", JSON.stringify(setting));
-};
-
 export const getToken = () => {
   return getStorage("token");
 };
@@ -58,6 +49,16 @@ export const setConnectId = (connectId: string) => {
 
 export const clearAll = () => {
   globalThis.localStorage.clear();
+};
+
+export const useSettingState = () => {
+  return useLocalStorageState<z.infer<typeof settingSchema> | undefined>(
+    storageKeySchema.enum.setting,
+    {
+      defaultValue: undefined,
+      listenStorageChange: true,
+    },
+  );
 };
 
 export const useTokenState = () => {

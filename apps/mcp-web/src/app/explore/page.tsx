@@ -1,20 +1,7 @@
 "use client";
 import { ExploreBtn } from "@/components/explore-btn";
-import { useEffect } from "react";
 
 export default function Explore() {
-  useEffect(() => {
-    fetch("http://localhost:3000/trpc/test", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        uuid: "123",
-      }),
-      credentials: "include",
-    });
-  }, []);
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] w-full px-4 py-12">
       <div className="max-w-2xl text-center">
