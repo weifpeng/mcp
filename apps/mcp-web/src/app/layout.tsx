@@ -1,6 +1,8 @@
 "use client";
 import { Toaster } from "@/components/ui/sonner";
 import { TrpcProvider } from "@/context/trpc";
+import { Analytics } from "@vercel/analytics/next";
+
 import "./globals.css";
 
 import WalletConnectProvider from "@/context/wallet-connect";
@@ -23,6 +25,7 @@ export default function Layout({
             </TrpcProvider>
           </WalletConnectProvider>
         </AppContextProvider>
+        <Analytics />
       </body>
     </html>
   );

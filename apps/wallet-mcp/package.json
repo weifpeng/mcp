@@ -19,7 +19,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tokenpocket/trpc": "workspace:^",
     "@modelcontextprotocol/sdk": "^1.9.0",
     "@trpc/client": "^11.0.0",
     "dotenv": "^16.5.0",
@@ -31,7 +30,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@tokenpocket/typescript-config": "workspace:^",
     "@types/express": "^5.0.1",
     "pkgroll": "^2.11.2"
   }
