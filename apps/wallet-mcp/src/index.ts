@@ -8,7 +8,7 @@ const BASE_URL = config.BASE_URL;
 
 // Create server instance
 const server = new McpServer({
-  name: "tokenpocket-wallet",
+  name: "wallet-mcp",
   version: "1.0.0",
   capabilities: {
     tools: {},
@@ -165,7 +165,7 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Solana Wallet MCP Server running on stdio");
+  console.error("Wallet MCP Server running on stdio");
 }
 
 main().catch((error) => {

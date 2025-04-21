@@ -1,10 +1,10 @@
-# TokenPocket Wallet MCP
+# Wallet MCP
 
 Connect your crypto wallet to AI Client.
 
 ## Overview
 
-TokenPocket Wallet MCP is an npm package that provides a seamless integration between AI Clients and user's crypto wallets. This package allows AI Clients to interact with blockchain functionality through natural language processing.
+Wallet MCP is an npm package that provides a seamless integration between AI Clients and user's crypto wallets. This package allows AI Clients to interact with blockchain functionality through natural language processing.
 
 ## Features
 
