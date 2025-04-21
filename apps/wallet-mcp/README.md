@@ -17,52 +17,21 @@ TokenPocket Wallet MCP is an npm package that provides a seamless integration be
 ### Installation
 
 ```bash
-npm install wallet-mcp
-# or
-yarn add wallet-mcp
-```
-
-### Basic Examples
-
-#### Connect Wallet
-
-```javascript
-import { connectWallet } from 'wallet-mcp';
-
-const wallet = await connectWallet();
-console.log("Connected wallet address:", wallet.address);
-```
-
-#### Sign Message
-
-```javascript
-import { signMessage } from 'wallet-mcp';
-
-const result = await signMessage({
-  message: "Hello, blockchain!",
-  network: "ethereum", // or "solana"
-  isHex: false,
-  address: "0x..."
-});
-console.log("Signature:", result.signature);
-```
-
-#### Sign Transaction
-
-```javascript
-import { signTransaction } from 'wallet-mcp';
-
-const result = await signTransaction({
-  transactionHex: "0x...",
-  network: "ethereum", // or "solana"
-  address: "0x..."
-});
-console.log("Signed transaction:", result.signedTransaction);
+  {
+    "mcpServers": {
+      "wallet-mcp": {
+        "command": "npx",
+        "args": [
+          "wallet-mcp"
+        ]
+      }
+    }
+  }
 ```
 
 ## Architecture
 
-Wallet MCP interacts with the TokenPocket MCP DApp to handle the secure connection to user wallets and transaction signing.
+Wallet MCP interacts with the Wallet MCP DApp to handle the secure connection to user wallets and transaction signing.
 
 ### Workflow
 
