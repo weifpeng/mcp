@@ -172,7 +172,7 @@ export default function Marketplace() {
   };
 
   // GitHub 仓库链接
-  const GITHUB_REPO_URL = "https://github.com/tokenbankteam/mcp-marketplace";
+  const GITHUB_REPO_URL = "https://github.com/TP-Lab/mcp-marketplace";
 
   return (
     <div className="container mx-auto   space-y-6  ">
