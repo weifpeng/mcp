@@ -16,6 +16,17 @@ export default function Layout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <title>Wallet MCP</title>
+        <meta
+          name="description"
+          content="The Simplest Way to Interact with Blockchain via Claude"
+        />
+        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/favicon.ico" />
+        <link rel="icon" href="/favicon.ico" />
+      </head>
       <body>
         <AppContextProvider>
           <WalletConnectProvider>
