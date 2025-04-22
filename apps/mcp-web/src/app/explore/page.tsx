@@ -1,5 +1,6 @@
 "use client";
 import { ExploreBtn } from "@/components/explore-btn";
+import { Button } from "@/components/ui/button";
 
 export default function Explore() {
   return (
@@ -14,6 +15,13 @@ export default function Explore() {
           to navigate the crypto world safely and confidently.
         </p>
         <div className="flex justify-center">
+          <Button
+            className="mr-4"
+            onClick={() => window.open("https://t.me/walletmcp", "_blank")}
+            variant="outline"
+          >
+            Join Our Community
+          </Button>
           <ExploreBtn />
         </div>
       </div>
