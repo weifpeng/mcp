@@ -10,10 +10,12 @@ const configSchema = z.object({
   rpcUrl: z
     .string()
     .describe("the solana rpc url")
-    .default("https://api.devnet.solana.com"),
+    .default("https://api.mainnet-beta.solana.com"),
 });
 
-const config = configSchema.parse(process.env);
+const config = configSchema.parse({
+  rpcUrl: process.env.RPC_URL,
+});
 
 const solana = new SolanaSDK({
   rpcUrl: config.rpcUrl,

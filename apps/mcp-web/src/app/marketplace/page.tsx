@@ -260,7 +260,7 @@ export default function Marketplace() {
                   {plugin.description}
                 </CardDescription>
               </CardContent>
-              <CardFooter className="p-4 pt-0 flex justify-between items-center border-t border-slate-100 dark:border-slate-800 mt-2 pt-3">
+              <CardFooter className="p-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800 mt-2 pt-3">
                 <div className="flex flex-wrap gap-2">
                   {plugin.tags.map((tag: string) => (
                     <Badge
