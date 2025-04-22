@@ -125,7 +125,7 @@ export function ExploreBtn() {
               </Button>
               <Button
                 onClick={() =>
-                  window.open("https://t.me/+giRkNJNU9IEzMTNl", "_blank")
+                  window.open("https://t.me/walletmcp", "_blank")
                 }
               >
                 Join Now
