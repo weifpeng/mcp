@@ -2,7 +2,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TrpcProvider } from "@/context/trpc";
 import { Analytics } from "@vercel/analytics/next";
-
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "./globals.css";
 
 import WalletConnectProvider from "@/context/wallet-connect";
@@ -37,6 +37,7 @@ export default function Layout({
           </WalletConnectProvider>
         </AppContextProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

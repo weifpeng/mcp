@@ -214,7 +214,7 @@ export default function Marketplace() {
   const GITHUB_REPO_URL = "https://github.com/TP-Lab/mcp-marketplace";
 
   return (
-    <div className="container mx-auto min-h-[calc(100vh-68px)] space-y-6 py-6   px-4 relative ">
+    <div className="container mx-auto min-h-[calc(100vh-68px)] space-y-6 py-6   px-4 relative flex flex-col ">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-4">
         <h1 className="text-3xl font-bold">Marketplace</h1>
         <div className="relative w-full md:w-80">
@@ -257,99 +257,105 @@ export default function Marketplace() {
         </div>
       )}
 
-      {/* 插件卡片网格 */}
-      {MOCK_PLUGINS.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredPlugins.map((plugin) => (
-            <Card
-              key={plugin.id}
-              className="overflow-hidden flex flex-col group border border-slate-200 dark:border-slate-800 hover:border-primary/30 dark:hover:border-primary/30 transition-all hover:shadow-md"
-            >
-              <CardHeader className="p-4 pb-2 flex flex-row items-center gap-3">
-                <div className="h-12 w-12 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0">
-                  <img
-                    src={plugin.imageUrl}
-                    alt={plugin.name}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
-                  />
-                </div>
-                <div>
-                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                    {plugin.name}
-                  </CardTitle>
-                  <div className="flex items-center text-sm text-muted-foreground gap-2 flex-wrap">
-                    <div className="flex items-center">
-                      <User className="h-3 w-3 mr-1" />
-                      <span>{plugin.author}</span>
-                    </div>
-                    <span className="inline-block h-1 w-1 rounded-full bg-muted-foreground/50" />
-                    <div className="flex items-center">
-                      <Download className="h-3 w-3 mr-1" />
-                      <span>{plugin.downloads.toLocaleString()}</span>
-                    </div>
-                    <span className="inline-block h-1 w-1 rounded-full bg-muted-foreground/50" />
-                    {renderRatingStars(plugin.rating)}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 flex-grow">
-                <CardDescription className="line-clamp-2 text-sm mt-2">
-                  {plugin.description}
-                </CardDescription>
-              </CardContent>
-              <CardFooter className="p-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800 mt-2 pt-3">
-                <div className="flex flex-wrap gap-2">
-                  {plugin.tags.map((tag: string) => (
-                    <Badge
-                      key={tag}
-                      variant="secondary"
-                      className="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                      onClick={() =>
-                        !selectedTags.includes(tag) && toggleTag(tag)
-                      }
-                    >
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-md hover:bg-primary hover:text-white text-xs group-hover:bg-primary group-hover:text-white transition-all"
-                  onClick={() => handleInstallClick(plugin)}
-                >
-                  Install
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center min-h-[70vh] w-full px-4 py-12">
-          <div className="max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight mb-4 text-primary">
-              No MCP Server available yet
-            </h1>
-            <p className="text-lg text-gray-700 mb-8">
-              The MCP Marketplace is waiting for your contributions. Be the
-              first to develop and share with our community!
-            </p>
-            <div className="flex justify-center">
-              <Button
-                variant="default"
-                className="gap-2"
-                onClick={() =>
-                  window.open(GITHUB_REPO_URL, "_blank", "noopener,noreferrer")
-                }
+      <div className=" grow">
+        {/* 插件卡片网格 */}
+        {MOCK_PLUGINS.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {filteredPlugins.map((plugin) => (
+              <Card
+                key={plugin.id}
+                className="overflow-hidden flex flex-col group border border-slate-200 dark:border-slate-800 hover:border-primary/30 dark:hover:border-primary/30 transition-all hover:shadow-md"
               >
-                <Github className="h-4 w-4" />
-                Contribute on GitHub
-                <ExternalLink className="h-3 w-3 ml-1" />
-              </Button>
+                <CardHeader className="p-4 pb-2 flex flex-row items-center gap-3">
+                  <div className="h-12 w-12 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex-shrink-0">
+                    <img
+                      src={plugin.imageUrl}
+                      alt={plugin.name}
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                    />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl group-hover:text-primary transition-colors">
+                      {plugin.name}
+                    </CardTitle>
+                    <div className="flex items-center text-sm text-muted-foreground gap-2 flex-wrap">
+                      <div className="flex items-center">
+                        <User className="h-3 w-3 mr-1" />
+                        <span>{plugin.author}</span>
+                      </div>
+                      <span className="inline-block h-1 w-1 rounded-full bg-muted-foreground/50" />
+                      <div className="flex items-center">
+                        <Download className="h-3 w-3 mr-1" />
+                        <span>{plugin.downloads.toLocaleString()}</span>
+                      </div>
+                      <span className="inline-block h-1 w-1 rounded-full bg-muted-foreground/50" />
+                      {renderRatingStars(plugin.rating)}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 flex-grow">
+                  <CardDescription className="line-clamp-2 text-sm mt-2">
+                    {plugin.description}
+                  </CardDescription>
+                </CardContent>
+                <CardFooter className="p-4 flex justify-between items-center border-t border-slate-100 dark:border-slate-800 mt-2 pt-3">
+                  <div className="flex flex-wrap gap-2">
+                    {plugin.tags.map((tag: string) => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                        onClick={() =>
+                          !selectedTags.includes(tag) && toggleTag(tag)
+                        }
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-md hover:bg-primary hover:text-white text-xs group-hover:bg-primary group-hover:text-white transition-all"
+                    onClick={() => handleInstallClick(plugin)}
+                  >
+                    Install
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] w-full px-4 py-12">
+            <div className="max-w-2xl text-center">
+              <h1 className="text-4xl font-bold tracking-tight mb-4 text-primary">
+                No MCP Server available yet
+              </h1>
+              <p className="text-lg text-gray-700 mb-8">
+                The MCP Marketplace is waiting for your contributions. Be the
+                first to develop and share with our community!
+              </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="default"
+                  className="gap-2"
+                  onClick={() =>
+                    window.open(
+                      GITHUB_REPO_URL,
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                >
+                  <Github className="h-4 w-4" />
+                  Contribute on GitHub
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 安装指引对话框 */}
       <Dialog open={isInstallDialogOpen} onOpenChange={setIsInstallDialogOpen}>
@@ -384,7 +390,7 @@ export default function Marketplace() {
 
       {/* Contribution section */}
       {MOCK_PLUGINS.length > 0 && (
-        <div className="mt-10 border-t pt-8 border-slate-200 dark:border-slate-800 absolute bottom-0 w-full pb-8">
+        <div className="mt-10 border-t pt-8 border-slate-200 dark:border-slate-800   pb-8  ">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
               <h2 className="text-2xl font-bold mb-2">Contribute to MCP</h2>
