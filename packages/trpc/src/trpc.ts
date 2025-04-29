@@ -7,6 +7,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 const t = initTRPC
   .context<{
     uuid?: string | null;
+    ip?: string | null;
   }>()
   .create();
 
@@ -29,3 +30,5 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
   }
   return next({ ctx: { uuid } });
 });
+
+

@@ -27,7 +27,8 @@
 			"style": {
 				"noNonNullAssertion": "off"
 			}
-		}
+		},
+		"ignore": ["nodeProtocolModules"]
 	},
 	"javascript": {
 		"formatter": {

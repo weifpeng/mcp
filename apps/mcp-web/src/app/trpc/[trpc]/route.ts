@@ -1,42 +1,24 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter, createContext } from "@tokenpocket/trpc";
-import type { NextRequest } from "next/server";
+import { ipAddress } from '@vercel/functions';
+
+export const maxDuration = 60;
 
 function handler(req: Request) {
-  // Check if it's an OPTIONS request (preflight)
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
-    });
-  }
-
   return fetchRequestHandler({
     endpoint: "/trpc",
     req,
     router: appRouter,
     createContext: async (req) => {
       const token = req.req.headers.get("authorization");
-      return createContext(token);
+      const ip = ipAddress(req.req) || 'unknown'
+      return createContext(token, ip);
     },
     onError: (opts) => {
       console.error(opts.error);
       return new Response("Internal Server Error", {
         status: 500,
       });
-    },
-    responseMeta: () => {
-      return {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
-      };
     },
   });
 }

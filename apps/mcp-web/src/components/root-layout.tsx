@@ -12,7 +12,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Link from "next/link";
-import { ConnectWallet } from "./connect-wallet";
+// import { ConnectWallet } from "./connect-wallet";
+import { ConnectWallet } from "./connect-wallet-v2";
 import { Button } from "./ui/button";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -52,7 +53,7 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
             </NavigationMenu>
           </div>
           <div className="flex items-center gap-2">
-            <ConnectWallet />
+            <ConnectWallet ><div /></ConnectWallet>
             {/* Mobile Menu Trigger */}
             <Sheet>
               <SheetTrigger asChild className="md:hidden">
