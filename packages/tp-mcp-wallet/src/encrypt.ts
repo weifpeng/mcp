@@ -1,3 +1,11 @@
+// 只在 Node.js 环境下执行
+
+// 如果 globalThis.crypto 不存在，就挂上去
+if (!globalThis.crypto) {
+  const { webcrypto } = await import('crypto');
+  globalThis.crypto = webcrypto;
+}
+
 const cryptoAPI = globalThis.crypto;
 
 /**
