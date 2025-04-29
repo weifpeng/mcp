@@ -10,7 +10,7 @@ export default defineConfig({
   splitting: false,
   shims: true,
   dts: false,
-  noExternal: ["@tokenpocket/solana", "@tokenpocket/trpc"],
+  noExternal: ["@tokenpocket/solana"],
   banner: {
     js: "#!/usr/bin/env node",
   },

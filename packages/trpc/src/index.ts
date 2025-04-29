@@ -1,248 +1,121 @@
-import { verifySignature } from "@tokenpocket/solana";
 import * as trpcExpress from "@trpc/server/adapters/express";
 import type { RequestHandler } from "express";
 import { z } from "zod";
-import { getSolanaSdk } from "./provider/solana-sdk";
 import {
   createCallerFactory,
-  protectedProcedure,
   publicProcedure,
-  router,
+  router
 } from "./trpc";
 
-import { db } from "./provider/storage/database";
-import { and, desc, eq, isNull, not } from "drizzle-orm";
 import {
-  signDataInsertSchema,
-  signDataSelectSchema,
-  signDataTable,
+  messageDataTable,
+  type MessageDataType,
 } from "@tokenpocket/database/src/db/schema";
-import { jwtVerify, SignJWT } from "jose";
+import { and, eq, gt } from "drizzle-orm";
+import { jwtVerify } from "jose";
 import { config } from "./config";
-import { redisStorage, walletSchema } from "./provider/storage/redis";
-import { TRPCError } from "@trpc/server";
+import { db } from "./provider/storage/database";
+import { redisStorage } from "./provider/storage/redis";
+
+const messageSendSchema = z.object({
+  id: z.string().nullish(),
+  topic: z.string(),
+  address: z.string().nullish(),
+  chainId: z.string(),
+  method: z.string(),
+  req: z.string(),
+  res: z.string().nullish(),
+  error: z.string().nullish(),
+  status: z.enum(["pending", "success", "error"]).default("pending"),
+})
 
 export const appRouter = router({
-  test: publicProcedure.mutation(async ({ input }) => {
-    return { test: "hello" };
-  }),
-  connect: publicProcedure
-    .input(
-      z.object({
-        uuid: z.string(),
+  message: {
+    send: publicProcedure
+      .input(messageSendSchema)
+      .mutation(async ({ input, ctx }) => {
+        if (!input.id) {
+          const { id, ...rest } = input
+          const result = await db
+            .insert(messageDataTable)
+            .values(rest)
+            .returning();
+          await redisStorage.setTopicIp(input.topic, ctx.ip || "unknown");
+          return result[0]?.id;
+        }
+
+        const res = z.string().parse(input.res);
+        const status = z.enum(["pending", "success", "error"]).parse(input.status);
+        const error = z.string().nullish().parse(input.error);
+        await db
+          .update(messageDataTable)
+          .set({
+            res,
+            status,
+            error,
+          })
+          .where(eq(messageDataTable.id, input.id));
+
+        return input.id;
       }),
-    )
-    .mutation(async ({ input }) => {
-      console.log("connect", input);
-      const token = await redisStorage.getToken(input.uuid);
-      console.log("token", token);
-      return token;
-    }),
-
-  signIn: publicProcedure
-    .input(
-      z.object({
-        uuid: z.string().nullish(),
-        message: z.string(),
-        signature: z.string(),
-        wallet: walletSchema,
-      }),
-    )
-    .mutation(async ({ input }) => {
-      const isValid = await verifySignature({
-        signature: input.signature,
-        message: input.message,
-        address: input.wallet.address,
-      });
-
-      if (!isValid) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Invalid signature",
-        });
-      }
-
-      const token = await new SignJWT({
-        uuid: input.uuid,
-        address: input.wallet.address,
-        role: "DAPP",
-      })
-        .setProtectedHeader({ alg: "HS256" })
-        .setExpirationTime("1w")
-        .sign(new TextEncoder().encode(config.jwtSecret));
-      if (input.uuid) {
-        const token = await new SignJWT({
-          uuid: input.uuid,
-          address: input.wallet.address,
-          role: "MCP",
-        })
-          .setProtectedHeader({ alg: "HS256" })
-          .setExpirationTime("24h")
-          .sign(new TextEncoder().encode(config.jwtSecret));
-
-        await redisStorage.setToken(input.uuid, token);
-        await redisStorage.setCurrentWallet(input.uuid, input.wallet);
-      }
-
-      return token;
-    }),
-  getWallet: protectedProcedure.query(async ({ input, ctx }) => {
-    const wallet = await redisStorage.getCurrentWallet(ctx.uuid);
-    return wallet;
-  }),
-
-  addSignData: protectedProcedure
-    .input(
-      signDataInsertSchema.pick({
-        address: true,
-        dataHex: true,
-        type: true,
-        network: true,
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      const currentWallet = await redisStorage.getCurrentWallet(ctx.uuid);
-
-      if (!currentWallet) {
-        throw new Error("Wallet not found");
-      }
-      const data = await db
-        .insert(signDataTable)
-        .values({
-          ...input,
-          createdBy: ctx.uuid,
-        })
-        .returning();
-      return data[0]?.id;
-    }),
-
-  submitSignedData: protectedProcedure
-    .input(
-      signDataInsertSchema
-        .required()
-        .pick({
-          id: true,
-          signedDataHex: true,
-        })
-        .merge(
-          z.object({
-            txHash: z.string().nullish(),
-          }),
-        ),
-    )
-    .mutation(async ({ input, ctx }) => {
-      const signDataArr = await db
-        .select()
-        .from(signDataTable)
-        .where(eq(signDataTable.id, input.id));
-      const signData = signDataArr[0];
-
-      if (signData?.createdBy !== ctx.uuid) {
-        throw new Error("uuid not match");
-      }
-
-      await db
-        .update(signDataTable)
-        .set({
-          signedDataHex: input.signedDataHex,
-          txHash: input.txHash,
-          updatedBy: ctx.uuid,
-        })
-        .where(eq(signDataTable.id, signData.id));
-    }),
-
-  getSignData: protectedProcedure
-    .input(
-      z.object({
-        id: z.string(),
-      }),
-    )
-    .output(
-      signDataSelectSchema
-        .pick({
-          id: true,
-          address: true,
-          dataHex: true,
-          network: true,
-          type: true,
-          txHash: true,
-          createdAt: true,
-          signedDataHex: true,
-        })
-        .nullable(),
-    )
-    .query(async ({ input, ctx }) => {
-      const signDataArr = await db
-        .select()
-        .from(signDataTable)
-        .where(eq(signDataTable.id, input.id));
-      const signData = signDataArr[0];
-
-      if (signData?.createdBy !== ctx.uuid) {
-        return null;
-      }
-
-      return signData;
-    }),
-
-  getSignDataList: protectedProcedure
-    .input(
-      z.object({
-        isSigned: z.boolean().nullish(),
-      }),
-    )
-    .output(
-      z.array(
-        signDataSelectSchema.pick({
-          id: true,
-          address: true,
-          dataHex: true,
-          createdAt: true,
-          type: true,
-          network: true,
-          signedDataHex: true,
+    listen: publicProcedure
+      .input(
+        z.object({
+          id: z.string().nullish(),
+          topic: z.string(),
+          timestamp: z.number().default(0),
         }),
-      ),
-    )
-    .query(async ({ input, ctx }) => {
-      const signDataArr = await db
-        .select()
-        .from(signDataTable)
-        .where(
-          and(
-            eq(signDataTable.createdBy, ctx.uuid),
-            input.isSigned
-              ? not(isNull(signDataTable.signedDataHex))
-              : isNull(signDataTable.signedDataHex),
-          ),
-        )
-        .orderBy(desc(signDataTable.createdAt));
+      )
+      .query(async ({ input }) => {
+        if (!input.id) {
+          await redisStorage.setActiveConn(input.topic);
+        }
+        let data: MessageDataType[] = []
+        let count = 0
+        do {
+          count++
 
-      return signDataArr;
-    }),
+          const messageData = await db
+            .select()
+            .from(messageDataTable)
+            .where(
+              and(
+                eq(messageDataTable.topic, input.topic),
+                gt(messageDataTable.createdAt, new Date(input.timestamp + 1)),
+                ...(input.id ? [eq(messageDataTable.id, input.id)] : []),
+              ),
+            );
 
-  sendTransaction: protectedProcedure
-    .input(
-      z.object({
-        signedDataHex: z.string(),
+          if (input.id) {
+            data = messageData.filter(m => Boolean(m.res))
+          } else {
+            data = messageData
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 1000))
+        } while (data.length === 0 && count < 30)
+        return data;
       }),
-    )
-    .mutation(async ({ input }) => {
-      const txHash = await getSolanaSdk().sendTransaction({
-        versionedTransactionHex: input.signedDataHex,
-      });
-
-      return txHash;
+  },
+  conn: {
+    info: publicProcedure.input(z.object({ topic: z.string() })).query(async ({ input, ctx }) => {
+      const ip = await redisStorage.getTopicIp(input.topic)
+      return { topicIp: ip, clientIp: ctx.ip }
     }),
+    isActive: publicProcedure
+      .input(z.object({ topic: z.string() }))
+      .query(async ({ input }) => {
+        const activeConn = await redisStorage.getActiveConn(input.topic);
+        return activeConn
+      }),
+  },
 });
 
-// Export type router type signature,
-// NOT the router itself.
 export type AppRouter = typeof appRouter;
 
-export const createContext = async (token?: string | null) => {
+export const createContext = async (token?: string | null, ip?: string | null) => {
   if (!token) {
-    return { uuid: null };
+    return { uuid: null, ip };
   }
   try {
     const data = await jwtVerify(
@@ -252,10 +125,9 @@ export const createContext = async (token?: string | null) => {
     if (data.payload.exp && data.payload.exp < Date.now() / 1000) {
       throw new Error("Unauthorized");
     }
-    return { uuid: data.payload.uuid as string };
+    return { uuid: data.payload.uuid as string, ip };
   } catch (e) {
-    console.log(e);
-    return { uuid: null };
+    return { uuid: null, ip };
   }
 };
 

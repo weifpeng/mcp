@@ -11,6 +11,9 @@ interface TokenPocketSolanaWallet {
   signTransaction(
     transaction: VersionedTransaction,
   ): Promise<VersionedTransaction>;
+  signAllTransactions(
+    transactions: VersionedTransaction[],
+  ): Promise<VersionedTransaction[]>;
   disconnect(): Promise<void>;
 }
 

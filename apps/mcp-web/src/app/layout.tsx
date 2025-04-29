@@ -2,10 +2,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TrpcProvider } from "@/context/trpc";
 import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-import WalletConnectProvider from "@/context/wallet-connect";
+// import WalletConnectProvider from "@/context/wallet-connect";
 import { RootLayout } from "@/components/root-layout";
 import { AppContextProvider } from "@/context/app-context";
 
@@ -29,12 +29,12 @@ export default function Layout({
       </head>
       <body>
         <AppContextProvider>
-          <WalletConnectProvider>
+          {/* <WalletConnectProvider> */}
             <TrpcProvider>
               <RootLayout>{children}</RootLayout>
               <Toaster position="top-right" />
             </TrpcProvider>
-          </WalletConnectProvider>
+          {/* </WalletConnectProvider> */}
         </AppContextProvider>
         <Analytics />
         <SpeedInsights />
