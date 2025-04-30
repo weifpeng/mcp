@@ -6,7 +6,11 @@ import { config } from "./config";
 import { decrypt, encrypt, generateKey, hashSHA256 } from "./encrypt";
 import type { ITransportDataSchema } from "./type";
 
-async function poolAndWaitting<T>(call: () => Promise<T>, timeout: number, interval: number = 1000) {
+async function poolAndWaitting<T>(
+  call: () => Promise<T>,
+  timeout: number,
+  interval: number = 1000,
+) {
   const startTime = Date.now();
   for (let i = 0; i < timeout / interval; i++) {
     if (Date.now() - startTime > timeout) {
@@ -17,7 +21,7 @@ async function poolAndWaitting<T>(call: () => Promise<T>, timeout: number, inter
       if (result) {
         return result;
       }
-    } catch (e) { }
+    } catch (e) {}
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   return null;
@@ -35,7 +39,10 @@ export class Transport {
   privateKey: string;
 
   constructor() {
-    this.privateKey = generateKey();
+    // topic=4303a429d2dc55bdfb688c34eb6482c251334a9180629ae981258bd10d98fee4&key=da5a520a3bd789468229387c8199131bffe84886405f58906b2ed22bfc5548e9
+    // this.privateKey = generateKey();
+    this.privateKey =
+      "da5a520a3bd789468229387c8199131bffe84886405f58906b2ed22bfc5548e9";
   }
 
   async send(data: z.infer<typeof ITransportDataSchema>) {
@@ -56,7 +63,6 @@ export class Transport {
 
       const isActive = await client.conn.isActive.query({ topic });
 
-
       if (!isActive) {
         open(
           `${config.TP_MCP_WALLET_URL}/connect/active?topic=${topic}&key=${this.privateKey}`,
@@ -68,7 +74,7 @@ export class Transport {
           const resData = await client.message.listen.query({
             topic,
             id: postRes,
-          })
+          });
           return resData[0].res;
         } catch (e) {
           throw e;
@@ -80,9 +86,11 @@ export class Transport {
       }
       const decryptedData = await decrypt(response, this.privateKey);
 
+      console.log("decryptedData", decryptedData);
+
       return JSON.parse(decryptedData);
     } catch (e) {
-      throw new Error("transport error");
+      throw new Error(`transport error: ${e.message}`);
     }
   }
 }

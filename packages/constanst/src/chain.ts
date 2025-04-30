@@ -4,6 +4,7 @@ import {
   arbitrum,
   arbitrumSepolia,
   mainnet,
+  tron,
 } from "@reown/appkit/networks";
 
 export const CHAIN_LIST = [
@@ -26,5 +27,9 @@ export const CHAIN_LIST = [
   {
     ...mainnet,
     network: "evm",
+  },
+  {
+    ...tron,
+    network: "tvm",
   },
 ];

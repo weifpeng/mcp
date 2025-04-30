@@ -1,4 +1,5 @@
 import type { PublicKey, VersionedTransaction } from "@solana/web3.js";
+import type { TronWeb } from "@tronweb3/tronwallet-abstract-adapter";
 
 interface TokenPocketSolanaWallet {
   signMessage(message: Uint8Array): Promise<{
@@ -24,6 +25,10 @@ interface TokenPocketEvmWallet {
 interface TokenPocket {
   solana: TokenPocketSolanaWallet;
   ethereum: TokenPocketEvmWallet;
+  tronWeb: TronWeb;
+  tron: {
+    request(params: { method: string }): Promise<any>;
+  };
 }
 
 declare global {
