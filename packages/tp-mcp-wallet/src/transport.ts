@@ -40,12 +40,12 @@ export class Transport {
 
   constructor() {
     this.privateKey = generateKey();
-    console.log(  this.privateKey);
   }
 
   async send(data: z.infer<typeof ITransportDataSchema>) {
     try {
       const encryptedData = await encrypt(
+        JSON.stringify(data),
         this.privateKey,
       );
 
@@ -85,6 +85,7 @@ export class Transport {
 
       return JSON.parse(decryptedData);
     } catch (e) {
+      console.log(e.stack);
       throw new Error(`transport error: ${e.message}`);
     }
   }
