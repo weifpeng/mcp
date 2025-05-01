@@ -305,7 +305,8 @@ export const ActionDisplay: React.FC<{ data: ITransportMessage }> = ({
           {chainInfo?.network}
         </span>
       </div>
-      <div className="mt-4 bg-gray-50 p-4 rounded-lg overflow-auto text-sm border border-gray-200">
+      
+      <div className="mt-4 bg-gray-50 p-4 rounded-lg overflow-auto text-sm border border-gray-200  ">
         <pre>{JSON.stringify(data.decryptReq?.data, null, 2)}</pre>
       </div>
     </div>

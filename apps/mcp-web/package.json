@@ -33,6 +33,7 @@
     "@tanstack/react-query": "^5.69.2",
     "@tokenpocket/constanst": "workspace:^",
     "@tokenpocket/trpc": "workspace:^",
+    "@tronweb3/tronwallet-abstract-adapter": "^1.1.9",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",

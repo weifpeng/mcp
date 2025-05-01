@@ -7,9 +7,19 @@ import {
   WalletSignMessageError,
   WalletSignTransactionError,
 } from "@solana/wallet-adapter-base";
-import type { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  VersionedMessage,
+  VersionedTransaction,
+  type PublicKey,
+  type Transaction,
+  type TransactionSignature,
+} from "@solana/web3.js";
 import { transport } from "./transport";
-import type { WalletName } from "@solana/wallet-adapter-base";
+import type {
+  SupportedTransactionVersions,
+  TransactionOrVersionedTransaction,
+  WalletName,
+} from "@solana/wallet-adapter-base";
 
 export const TPMCPWalletName = "TP-MCP" as WalletName<"TP-MCP">;
 
@@ -51,7 +61,6 @@ export class TPMCPWalletAdapter extends BaseMessageSignerWalletAdapter {
 
       this._connecting = true;
 
-
       const res = await transport.send({
         network: "svm",
         chainId: this._chainId,
@@ -91,27 +100,26 @@ export class TPMCPWalletAdapter extends BaseMessageSignerWalletAdapter {
     this.emit("disconnect");
   }
 
-  async signTransaction<T extends Transaction>(transaction: T): Promise<T> {
+  async signTransaction<
+    T extends TransactionOrVersionedTransaction<SupportedTransactionVersions>,
+  >(transaction: T): Promise<T> {
     try {
-      if (!this.publicKey) throw new WalletNotConnectedError();
+      const res = await transport.send({
+        network: "svm",
+        chainId: this._chainId,
+        data: {
+          method: "signTransaction",
+          data: Buffer.from(transaction.serialize()).toString("hex"),
+        },
+      });
 
-      try {
-        const res = await transport.send({
-          network: "svm",
-          chainId: this._chainId,
-          data: {
-            method: "signTransaction",
-            data: transaction.serialize(),
-          },
-        });
+      const signedTransaction = VersionedTransaction.deserialize(
+        Buffer.from(res, "hex"),
+      );
 
-        return res;
-      } catch (error: any) {
-        throw new WalletSignTransactionError(error?.message, error);
-      }
+      return signedTransaction as T;
     } catch (error: any) {
-      this.emit("error", error);
-      throw error;
+      throw new WalletSignTransactionError(error?.message, error);
     }
   }
 
@@ -142,24 +150,23 @@ export class TPMCPWalletAdapter extends BaseMessageSignerWalletAdapter {
 
   async signMessage(message: Uint8Array): Promise<Uint8Array> {
     try {
-      if (!this.publicKey) throw new WalletNotConnectedError();
+      const decoder = new TextDecoder();
+      const data = decoder.decode(message);
 
-      try {
-        const res = await transport.send({
-          network: "svm",
-          chainId: this._chainId,
-          data: {
-            method: "signMessage",
-            data: message,
-          },
-        });
-        return res;
-      } catch (error: any) {
-        throw new WalletSignMessageError(error?.message, error);
-      }
+      const res = await transport.send({
+        network: "svm",
+        chainId: this._chainId,
+        data: {
+          method: "signMessage",
+          data,
+        },
+      });
+
+      const signature = Buffer.from(res.signature, "hex");
+
+      return signature;
     } catch (error: any) {
-      this.emit("error", error);
-      throw error;
+      throw new WalletSignMessageError(error?.message, error);
     }
   }
 }

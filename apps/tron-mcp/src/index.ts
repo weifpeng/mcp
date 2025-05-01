@@ -1,25 +1,29 @@
+import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
-import { tools } from "./tools";
-
-// Create server instance
+import { z } from "zod";
+import { TronWeb } from "tronweb";
+import * as sendTrxTool from "./tools/send-trx";
+ 
 const server = new McpServer({
-  name: "wallet-mcp",
+  name: "tron mcp",
   version: "1.0.0",
   capabilities: {
     tools: {},
   },
 });
 
-for (const tool of tools) {
-  server.tool(tool.name, tool.description, tool.paramSchema, tool.handle);
-}
+server.tool(
+  sendTrxTool.name,
+  sendTrxTool.description,
+  sendTrxTool.paramSchema,
+  sendTrxTool.handle,
+);
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Wallet MCP Server running on stdio");
+  console.error("Tron MCP Server running on stdio");
 }
 
 main().catch((error) => {

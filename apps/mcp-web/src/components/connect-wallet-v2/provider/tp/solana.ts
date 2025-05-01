@@ -2,8 +2,6 @@ import { VersionedTransaction } from "@solana/web3.js";
 
 const solana = globalThis.window?.tokenpocket?.solana;
 
-
-
 export const request = async (
   chainId: string,
   param: {
@@ -22,18 +20,31 @@ export const request = async (
   }
 
   if (method === "signMessage") {
-    return await solana?.signMessage(data);
+    const signedData = await solana?.signMessage(
+      new TextEncoder().encode(data),
+    );
+
+    return {
+      ...signedData,
+      signature: signedData?.signature.toString("hex"),
+    };
   }
 
   if (method === "signTransaction") {
-    const transaction = VersionedTransaction.deserialize(data);
+    const transaction = VersionedTransaction.deserialize(
+      Buffer.from(data, "hex"),
+    );
 
-    return await solana?.signTransaction(transaction);
+    const signedData = await solana?.signTransaction(transaction);
+
+    if (!signedData) return "";
+
+    return Buffer.from(signedData.serialize()).toString("hex");
   }
 
   if (method === "signAllTransactions") {
     const transactions = data.map((t: any) =>
-      VersionedTransaction.deserialize(t),
+      VersionedTransaction.deserialize(Buffer.from(t, "hex")),
     );
 
     return await solana?.signAllTransactions(transactions);

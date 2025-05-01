@@ -2,7 +2,7 @@ import "dotenv/config";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { mainnet, arbitrumSepolia, type Chain } from "viem/chains";
+import type { Chain } from "viem/chains";
 import { createTpMCPEvmWalletClient } from "tp-mcp-wallet";
 import { CHAIN_LIST } from "@tokenpocket/constanst/src/chain";
 import { parseEther } from "viem";

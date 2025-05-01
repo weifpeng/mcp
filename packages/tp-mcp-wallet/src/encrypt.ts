@@ -1,12 +1,13 @@
-// 只在 Node.js 环境下执行
+// biome-ignore lint/style/useNodejsImportProtocol: <explanation>
+import { webcrypto } from "crypto";
 
-// 如果 globalThis.crypto 不存在，就挂上去
-if (!globalThis.crypto) {
-  const { webcrypto } = await import('crypto');
-  globalThis.crypto = webcrypto;
+let cryptoAPI: typeof webcrypto;
+
+if (typeof globalThis.crypto !== "undefined") {
+  cryptoAPI = globalThis.crypto as typeof webcrypto;
+} else {
+  cryptoAPI = webcrypto;
 }
-
-const cryptoAPI = globalThis.crypto;
 
 /**
  * 使用AES-256-GCM加密数据
@@ -140,6 +141,7 @@ function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
 
 export const hashSHA256 = async (input: string) => {
   const encoder = new TextEncoder();
+
   const data = encoder.encode(input);
   const hashBuffer = await cryptoAPI.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(hashBuffer))

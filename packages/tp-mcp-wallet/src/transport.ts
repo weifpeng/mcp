@@ -6,7 +6,11 @@ import { config } from "./config";
 import { decrypt, encrypt, generateKey, hashSHA256 } from "./encrypt";
 import type { ITransportDataSchema } from "./type";
 
-async function poolAndWaitting<T>(call: () => Promise<T>, timeout: number, interval: number = 1000) {
+async function poolAndWaitting<T>(
+  call: () => Promise<T>,
+  timeout: number,
+  interval: number = 1000,
+) {
   const startTime = Date.now();
   for (let i = 0; i < timeout / interval; i++) {
     if (Date.now() - startTime > timeout) {
@@ -17,7 +21,7 @@ async function poolAndWaitting<T>(call: () => Promise<T>, timeout: number, inter
       if (result) {
         return result;
       }
-    } catch (e) { }
+    } catch (e) {}
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   return null;
@@ -36,12 +40,12 @@ export class Transport {
 
   constructor() {
     this.privateKey = generateKey();
+    console.log(  this.privateKey);
   }
 
   async send(data: z.infer<typeof ITransportDataSchema>) {
     try {
       const encryptedData = await encrypt(
-        JSON.stringify(data),
         this.privateKey,
       );
 
@@ -56,7 +60,6 @@ export class Transport {
 
       const isActive = await client.conn.isActive.query({ topic });
 
-
       if (!isActive) {
         open(
           `${config.TP_MCP_WALLET_URL}/connect/active?topic=${topic}&key=${this.privateKey}`,
@@ -68,7 +71,7 @@ export class Transport {
           const resData = await client.message.listen.query({
             topic,
             id: postRes,
-          })
+          });
           return resData[0].res;
         } catch (e) {
           throw e;
@@ -82,7 +85,7 @@ export class Transport {
 
       return JSON.parse(decryptedData);
     } catch (e) {
-      throw new Error("transport error");
+      throw new Error(`transport error: ${e.message}`);
     }
   }
 }

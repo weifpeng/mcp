@@ -15,7 +15,7 @@ export interface IWallet {
   disconnect: (option: IOption) => Promise<void>;
 }
 
-export type NetworkType = "svm" | "evm" | "tron";
+export type NetworkType = "svm" | "evm" | "tvm";
 
 export interface IStateStore {
   showMessageDialog: boolean;
