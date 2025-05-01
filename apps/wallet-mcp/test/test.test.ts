@@ -28,7 +28,7 @@ const [
 
 const addressMap: Record<string, string> = {};
 
-for (const chain of [CHAIN_LIST[5]]) {
+for (const chain of [CHAIN_LIST[1]]) {
   test(
     `test connectWalletTool on ${chain.name}`,
     { timeout: 1000 * 60 * 60 },
@@ -54,7 +54,7 @@ for (const chain of [CHAIN_LIST[5]]) {
     },
   );
 
-  test.skip(
+  test(
     `test sign message on ${chain.name}`,
     { timeout: 1000 * 60 * 60 },
     async () => {
@@ -68,7 +68,7 @@ for (const chain of [CHAIN_LIST[5]]) {
     },
   );
 
-  test(
+  test.skip(
     `test sign transaction on ${chain.name}`,
     { timeout: 1000 * 60 * 60 },
     async () => {

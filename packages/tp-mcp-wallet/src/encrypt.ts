@@ -29,7 +29,6 @@ export async function encrypt(
 
   // 生成随机 IV (12字节是GCM的推荐长度)
   const iv = cryptoAPI.getRandomValues(new Uint8Array(12));
-
   // 导入密钥
   const cryptoKey = await cryptoAPI.subtle.importKey(
     "raw",
@@ -116,7 +115,7 @@ export function generateKey(): string {
 }
 
 // 工具方法
-function arrayBufferToHex(buffer: ArrayBuffer): string {
+export function arrayBufferToHex(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))

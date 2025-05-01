@@ -1,4 +1,5 @@
 import { VersionedTransaction } from "@solana/web3.js";
+import { arrayBufferToHex } from "tp-mcp-wallet/src/encrypt";
 
 const solana = globalThis.window?.tokenpocket?.solana;
 
@@ -24,9 +25,11 @@ export const request = async (
       new TextEncoder().encode(data),
     );
 
+    if (!signedData?.signature) return "";
+
     return {
       ...signedData,
-      signature: signedData?.signature.toString("hex"),
+      signature: arrayBufferToHex(signedData?.signature.buffer as ArrayBuffer),
     };
   }
 
