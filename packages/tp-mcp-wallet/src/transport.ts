@@ -39,16 +39,13 @@ export class Transport {
   privateKey: string;
 
   constructor() {
-    // topic=4303a429d2dc55bdfb688c34eb6482c251334a9180629ae981258bd10d98fee4&key=da5a520a3bd789468229387c8199131bffe84886405f58906b2ed22bfc5548e9
-    // this.privateKey = generateKey();
-    this.privateKey =
-      "da5a520a3bd789468229387c8199131bffe84886405f58906b2ed22bfc5548e9";
+    this.privateKey = generateKey();
+    console.log(  this.privateKey);
   }
 
   async send(data: z.infer<typeof ITransportDataSchema>) {
     try {
       const encryptedData = await encrypt(
-        JSON.stringify(data),
         this.privateKey,
       );
 
@@ -85,8 +82,6 @@ export class Transport {
         throw new Error("timeout");
       }
       const decryptedData = await decrypt(response, this.privateKey);
-
-      console.log("decryptedData", decryptedData);
 
       return JSON.parse(decryptedData);
     } catch (e) {

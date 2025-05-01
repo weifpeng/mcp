@@ -340,11 +340,45 @@ importers:
         specifier: ^22.14.1
         version: 22.14.1
 
+  apps/tron-mcp:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.9.0
+        version: 1.9.0
+      '@tokenpocket/constanst':
+        specifier: workspace:^
+        version: link:../../packages/constanst
+      decimal.js:
+        specifier: 10.5.0
+        version: 10.5.0
+      dotenv:
+        specifier: 16.5.0
+        version: 16.5.0
+      tp-mcp-wallet:
+        specifier: workspace:^
+        version: link:../../packages/tp-mcp-wallet
+      tronweb:
+        specifier: ^6.0.3
+        version: 6.0.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      zod:
+        specifier: 3.24.2
+        version: 3.24.2
+    devDependencies:
+      '@tokenpocket/typescript-config':
+        specifier: workspace:^
+        version: link:../../packages/typescript-config
+      '@types/node':
+        specifier: ^22.14.1
+        version: 22.14.1
+
   apps/wallet-mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.9.0
         version: 1.9.0
+      '@solana/web3.js':
+        specifier: ^1.98.2
+        version: 1.98.2(bufferutil@4.0.9)(typescript@5.8.2)(utf-8-validate@5.0.10)
       '@tokenpocket/constanst':
         specifier: workspace:^
         version: link:../../packages/constanst
@@ -354,6 +388,9 @@ importers:
       '@trpc/client':
         specifier: 11.0.0
         version: 11.0.0(@trpc/server@11.0.0(typescript@5.8.2))(typescript@5.8.2)
+      decimal.js:
+        specifier: ^10.5.0
+        version: 10.5.0
       dotenv:
         specifier: 16.5.0
         version: 16.5.0
@@ -363,6 +400,9 @@ importers:
       tp-mcp-wallet:
         specifier: workspace:^
         version: link:../../packages/tp-mcp-wallet
+      tronweb:
+        specifier: ^6.0.3
+        version: 6.0.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       uuid:
         specifier: 11.1.0
         version: 11.1.0
@@ -14032,8 +14072,8 @@ snapshots:
   '@solana/web3.js@1.98.2(bufferutil@4.0.9)(typescript@5.8.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@babel/runtime': 7.27.0
-      '@noble/curves': 1.8.1
-      '@noble/hashes': 1.7.1
+      '@noble/curves': 1.8.2
+      '@noble/hashes': 1.7.2
       '@solana/buffer-layout': 4.0.1
       '@solana/codecs-numbers': 2.1.0(typescript@5.8.2)
       agentkeepalive: 4.6.0

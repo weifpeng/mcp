@@ -1,27 +1,26 @@
 "use client";
+import { ActionDisplay } from "@/components/connect-wallet-v2/action-display";
 import {
-  callWallet,
   confirmCurrentMessage,
   dataStore,
   initConnecting,
+  isWriteMessage,
   stateStore,
   useWalletDataStateCurr,
-  isWriteMessage,
 } from "@/components/connect-wallet-v2/store";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { useSnapshot } from "valtio";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { ActionDisplay } from "@/components/connect-wallet-v2/action-display";
 
 function Connect(params: { tab?: string }) {
   const { message } = useWalletDataStateCurr();
@@ -76,7 +75,7 @@ function Connect(params: { tab?: string }) {
           <DialogHeader>
             <DialogTitle>Message need confirmation</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-auto">
             {currentMessage && <ActionDisplay data={currentMessage} />}
           </div>
           <DialogFooter>
@@ -272,7 +271,7 @@ function Connect(params: { tab?: string }) {
                     className="border-t border-gray-100 overflow-hidden"
                   >
                     <div className="p-4">
-                      <div className="grid gap-4">
+                      <div className="flex flex-col gap-4">
                         <div className="flex items-center">
                           <span className="font-medium w-28 text-gray-600">
                             Method:
@@ -283,12 +282,12 @@ function Connect(params: { tab?: string }) {
                         </div>
 
                         {msg.decryptReq && (
-                          <div>
+                          <div >
                             <div className="font-medium text-gray-600 mb-2">
                               Request Details
                             </div>
                             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                              <div className="grid gap-3">
+                              <div className="  gap-3">
                                 <div className="flex items-center">
                                   <span className="w-24 text-gray-600">
                                     Network:

@@ -23,7 +23,6 @@ export class TPMCPWalletAdapter {
         },
       },
     });
-    console.log(res);
     return res;
   }
 

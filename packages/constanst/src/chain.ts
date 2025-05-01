@@ -10,26 +10,32 @@ import {
 export const CHAIN_LIST = [
   {
     ...solana,
-    network: "svm",
+    network: "svm" as const,
+    rpc_url: "https://api.mainnet-beta.solana.com",
   },
   {
     ...solanaDevnet,
-    network: "svm",
+    network: "svm" as const,
+    rpc_url: "https://api.devnet.solana.com",
   },
   {
     ...arbitrum,
-    network: "evm",
+    network: "evm" as const,
+    rpc_url: "https://arb1.arbitrum.io/rpc",
   },
   {
     ...arbitrumSepolia,
-    network: "evm",
+    network: "evm" as const,
+    rpc_url: "https://sepolia-rollup.arbitrum.io/rpc",
   },
   {
     ...mainnet,
-    network: "evm",
+    network: "evm" as const,
+    rpc_url: "https://eth.merkle.io",
   },
   {
     ...tron,
-    network: "tvm",
+    network: "tvm" as const,
+    rpc_url: "https://api.trongrid.io",
   },
 ];

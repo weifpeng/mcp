@@ -50,7 +50,6 @@ export const dataStore = proxy<IDataStore>(
 );
 
 subscribe(dataStore, () => {
-  console.log("data srote change", dataStore);
   localStorage.setItem(
     storageKeySchema.Enum.wallet_data_state,
     JSON.stringify(dataStore),
