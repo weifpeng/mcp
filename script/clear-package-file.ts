@@ -29,6 +29,12 @@ try {
     console.log('Removed "workspaces" field');
   }
 
+  // Update main field
+  if (packageJson.main === './src/index.ts') {
+    packageJson.main = './dist/index.js';
+    console.log('Updated "main" field from "./src/index.ts" to "./dist/index.js"');
+  }
+
   // Remove dependencies that reference workspaces
   if (packageJson.dependencies) {
     let removedCount = 0;
