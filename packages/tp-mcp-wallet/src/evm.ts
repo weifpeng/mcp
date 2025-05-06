@@ -8,7 +8,6 @@ export function createTpEvmWalletClient(param: { chain: Chain }) {
     transport: custom({
       request: async (args) => {
         try {
-
           const res = await transport.send({
             network: "evm",
             chainId: param.chain.id,
@@ -20,7 +19,7 @@ export function createTpEvmWalletClient(param: { chain: Chain }) {
           }
 
           return res;
-        } catch (e) {
+        } catch (e: any) {
           return e.message;
         }
       },

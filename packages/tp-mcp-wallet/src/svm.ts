@@ -1,3 +1,8 @@
+import type {
+  SupportedTransactionVersions,
+  TransactionOrVersionedTransaction,
+  WalletName,
+} from "@solana/wallet-adapter-base";
 import {
   BaseMessageSignerWalletAdapter,
   WalletDisconnectionError,
@@ -8,18 +13,11 @@ import {
   WalletSignTransactionError,
 } from "@solana/wallet-adapter-base";
 import {
-  VersionedMessage,
-  VersionedTransaction,
   type PublicKey,
   type Transaction,
-  type TransactionSignature,
+  VersionedTransaction
 } from "@solana/web3.js";
 import { transport } from "./transport";
-import type {
-  SupportedTransactionVersions,
-  TransactionOrVersionedTransaction,
-  WalletName,
-} from "@solana/wallet-adapter-base";
 
 export const TPMCPWalletName = "TP-MCP" as WalletName<"TP-MCP">;
 
