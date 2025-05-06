@@ -12,7 +12,7 @@ export class TPMCPWalletAdapter {
     this.chainId = chainId;
   }
 
-  async connect(): Promise<void> {
+  async connect(): Promise<string[]> {
     const res = await transport.send({
       network: "tvm",
       chainId: this.chainId,

@@ -10,7 +10,7 @@ export default defineConfig({
   splitting: false,
   shims: true,
   dts: false,
-  noExternal: ["@tokenpocket/trpc", "@tokenpocket/constanst", "tp-mcp-wallet"],
+  noExternal: ["@tokenpocket/constanst", "tp-mcp-wallet"],
   banner: {
     js: "#!/usr/bin/env node",
   },

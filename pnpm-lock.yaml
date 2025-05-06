@@ -382,9 +382,6 @@ importers:
       '@tokenpocket/constanst':
         specifier: workspace:^
         version: link:../../packages/constanst
-      '@tokenpocket/trpc':
-        specifier: workspace:^
-        version: link:../../packages/trpc
       '@trpc/client':
         specifier: 11.0.0
         version: 11.0.0(@trpc/server@11.0.0(typescript@5.8.2))(typescript@5.8.2)

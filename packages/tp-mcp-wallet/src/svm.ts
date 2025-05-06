@@ -13,9 +13,9 @@ import {
   WalletSignTransactionError,
 } from "@solana/wallet-adapter-base";
 import {
-  type PublicKey,
+  PublicKey,
   type Transaction,
-  VersionedTransaction
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { transport } from "./transport";
 
@@ -69,7 +69,7 @@ export class TPMCPWalletAdapter extends BaseMessageSignerWalletAdapter {
 
       const account = res;
 
-      this._publicKey = account;
+      this._publicKey = new PublicKey(account.publicKey);
 
       this.emit("connect", account);
     } catch (error: any) {
