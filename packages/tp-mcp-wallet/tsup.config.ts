@@ -9,9 +9,10 @@ export default defineConfig({
   clean: true,
   splitting: false,
   shims: true,
-  dts: false,
-  noExternal: ["open"],
-  banner: {
-    js: "#!/usr/bin/env node",
+  dts: true,
+  noExternal: ["@tokenpocket/trpc"],
+  esbuildOptions(options) {
+    options.target = "es2020";
+    options.platform = "node";
   },
 });
