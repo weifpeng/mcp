@@ -84,7 +84,7 @@ export class Transport {
       const decryptedData = await decrypt(response, this.privateKey);
 
       return JSON.parse(decryptedData);
-    } catch (e) {
+    } catch (e: any) {
       console.log(e.stack);
       throw new Error(`transport error: ${e.message}`);
     }

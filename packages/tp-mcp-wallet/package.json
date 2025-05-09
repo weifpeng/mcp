@@ -8,8 +8,9 @@
     "build": "tsup"
   },
   "exports": {
-    ".": "./dist/index.js",
-    "./constants": "./dist/constants.js"
+    ".": "./src/index.ts",
+    "./src/*": "./src/*.ts",
+    "./constants": "./src/constants.ts"
   },
   "files": [
     "dist",

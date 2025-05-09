@@ -35,6 +35,31 @@ try {
     console.log('Updated "main" field from "./src/index.ts" to "./dist/index.js"');
   }
 
+  // Update exports field
+  if (packageJson.exports) {
+    const updateExportsPath = (obj: any) => {
+      for (const key in obj) {
+        if (typeof obj[key] === 'string') {
+          if (obj[key].startsWith('./src/')) {
+            const newPath = obj[key].replace('./src/', './dist/').replace('.ts', '.js');
+            obj[key] = newPath;
+            console.log(`Updated exports path from "${obj[key]}" to "${newPath}"`);
+          }
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+          updateExportsPath(obj[key]);
+        }
+      }
+    };
+
+    updateExportsPath(packageJson.exports);
+
+    // Remove "./src/*" pattern from exports
+    if (packageJson.exports['./src/*']) {
+      delete packageJson.exports['./src/*'];
+      console.log('Removed "./src/*" pattern from exports');
+    }
+  }
+
   // Remove dependencies that reference workspaces
   if (packageJson.dependencies) {
     let removedCount = 0;
