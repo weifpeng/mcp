@@ -11,23 +11,23 @@
   "dependencies": {
     "@tokenpocket/database": "workspace:^",
     "@tokenpocket/solana": "workspace:^",
-    "@solana/web3.js": "^1.95.5",
-    "@trpc/client": "^11.0.0",
-    "@trpc/server": "^11.0.0",
-    "@upstash/redis": "^1.34.8",
-    "bs58": "^6.0.0",
-    "decimal.js": "^10.5.0",
-    "drizzle-orm": "^0.42.0",
-    "jose": "^6.0.10",
-    "lodash": "^4.17.21",
-    "uuid": "^11.1.0",
-    "zod": "^3.24.2"
+    "@solana/web3.js": "1.95.5",
+    "@trpc/client": "11.0.0",
+    "@trpc/server": "11.0.0",
+    "@upstash/redis": "1.34.8",
+    "bs58": "6.0.0",
+    "decimal.js": "10.5.0",
+    "drizzle-orm": "0.42.0",
+    "jose": "6.0.10",
+    "lodash": "4.17.21",
+    "uuid": "11.1.0",
+    "zod": "3.24.2"
   },
   "devDependencies": {
     "@tokenpocket/typescript-config": "workspace:^",
-    "@types/express": "^5.0.1",
-    "@types/lodash": "^4.17.16",
-    "@types/node": "^22.13.14",
-    "dotenv": "^16.4.7"
+    "@types/express": "5.0.1",
+    "@types/lodash": "4.17.16",
+    "@types/node": "22.13.14",
+    "dotenv": "16.4.7"
   }
 }

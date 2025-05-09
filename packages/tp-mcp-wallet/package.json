@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "./src/index.ts",
-  "type":"module",
+  "type": "module",
   "scripts": {
-    "build":"tsup"
+    "build": "tsup"
   },
   "files": [
     "dist",
@@ -16,20 +16,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@solana/wallet-adapter-base": "^0.9.26",
-    "@solana/web3.js": "^1.98.1",
+    "@solana/wallet-adapter-base": "0.9.26",
+    "@solana/web3.js": "1.98.1",
     "@tokenpocket/trpc": "workspace:^",
-    "@tronweb3/tronwallet-abstract-adapter": "^1.1.9",
-    "@tronweb3/tronwallet-adapter-tronlink": "^1.1.12",
-    "@trpc/client": "^11.1.1",
-    "open": "^10.1.1",
-    "tronweb": "^6.0.3",
-    "uuid": "^11.1.0",
-    "viem": "^2.28.0",
-    "zod": "^3.24.3"
+    "@tokenpocket/constanst": "workspace:^",
+    "@tronweb3/tronwallet-abstract-adapter": "1.1.9",
+    "@tronweb3/tronwallet-adapter-tronlink": "1.1.12",
+    "@trpc/client": "11.1.1",
+    "open": "10.1.1",
+    "tronweb": "6.0.3",
+    "uuid": "11.1.0",
+    "viem": "2.28.0",
+    "zod": "3.24.3"
   },
   "devDependencies": {
-    "@types/node": "^22.14.1",
-    "dotenv": "^16.5.0"
+    "@types/node": "22.14.1",
+    "dotenv": "16.5.0"
   }
 }
