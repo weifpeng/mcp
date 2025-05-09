@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@reown/appkit": "^1.7.2"
+    "@reown/appkit": "1.7.2"
   }
 }

@@ -5,6 +5,7 @@ import {
   arbitrumSepolia,
   mainnet,
   tron,
+  bsc,
 } from "@reown/appkit/networks";
 
 export const CHAIN_LIST = [
@@ -32,6 +33,11 @@ export const CHAIN_LIST = [
     ...mainnet,
     network: "evm" as const,
     rpc_url: "https://eth.merkle.io",
+  },
+  {
+    ...bsc,
+    network: "evm" as const,
+    rpc_url: "https://56.rpc.thirdweb.com",
   },
   {
     ...tron,
